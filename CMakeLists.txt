@@ -7,9 +7,18 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
-# uncomment the following section in order to fill in
-# further dependencies manually.
-# find_package(<dependency> REQUIRED)
+
+# Include directory
+include_directories(include)
+
+# Executable for test_rdp
+add_executable(test_rdp src/test_rdp.cpp src/rdp.cpp)
+target_include_directories(test_rdp PRIVATE include)
+
+# Installation
+install(TARGETS test_rdp
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
+)
 
 if(BUILD_TESTING)
 endif()
