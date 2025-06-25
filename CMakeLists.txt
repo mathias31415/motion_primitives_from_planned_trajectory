@@ -15,6 +15,8 @@ find_package(industrial_robot_motion_interfaces REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
+find_package(rclcpp_action REQUIRED)
+find_package(action_msgs REQUIRED)
 
 # Include directory
 include_directories(include)
@@ -27,6 +29,7 @@ add_executable(process_trajectory_to_motion_primitives
   src/rdp.cpp
   src/fk_client.cpp
   src/pose_marker_visualizer.cpp
+  src/execute_motion_client.cpp
 )
 target_include_directories(process_trajectory_to_motion_primitives PRIVATE include)
 ament_target_dependencies(process_trajectory_to_motion_primitives
@@ -37,6 +40,8 @@ ament_target_dependencies(process_trajectory_to_motion_primitives
   visualization_msgs
   tf2
   tf2_geometry_msgs
+  rclcpp_action
+  action_msgs
   industrial_robot_motion_interfaces
 )
 

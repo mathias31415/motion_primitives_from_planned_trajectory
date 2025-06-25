@@ -24,8 +24,8 @@
 #include "motion_primitives_from_planned_trajectory/fk_client.hpp"
 #include "industrial_robot_motion_interfaces/msg/motion_sequence.hpp"
 #include "motion_primitives_from_planned_trajectory/approx_primitives_with_rdp.hpp"
-#include "motion_primitives_from_planned_trajectory/pose_marker_visualizer.hpp" 
-
+#include "motion_primitives_from_planned_trajectory/pose_marker_visualizer.hpp"
+#include "motion_primitives_from_planned_trajectory/execute_motion_client.hpp"
 
 #define DATA_DIR "src/motion_primitives_from_planned_trajectory/data"
 
@@ -195,19 +195,19 @@ int main(int argc, char** argv)
             visualizer.deletePoseMarkers(static_cast<int>(reduced_poses.size()), frame_id, marker_ns);
             RCLCPP_INFO(node->get_logger(), "Starting execution of motion primitives...");
 
-            // // Setup motion execution client
-            // auto motion_node = std::make_shared<ExecuteMotionClient>();
-            // std::string executed_csv_path = save_dir + "/trajectory_" + timestamp + "_executed.csv";
+            // Setup motion execution client
+            auto motion_node = std::make_shared<ExecuteMotionClient>();
 
-            // // Start logging
+            // Start logging
+            // std::string executed_csv_path = save_dir + "/trajectory_" + timestamp + "_executed.csv";
             // JointStateLogger joint_state_logger(motion_node, executed_csv_path);
             // joint_state_logger.start();
 
-            // // Send motion sequence
-            // motion_node->sendMotionSequence(motion_sequence_msg);
+            // Send motion sequence
+            motion_node->send_motion_sequence(motion_sequence);
 
-            // // Spin node while executing
-            // rclcpp::spin(motion_node);
+            // Spin node while executing
+            rclcpp::spin(motion_node);
 
             // // Stop logging
             // joint_state_logger.stop();
