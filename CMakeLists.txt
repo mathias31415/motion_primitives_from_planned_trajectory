@@ -9,6 +9,8 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(moveit_msgs REQUIRED)
+find_package(trajectory_msgs REQUIRED)
 find_package(industrial_robot_motion_interfaces REQUIRED)
 
 # Include directory
@@ -33,10 +35,24 @@ ament_target_dependencies(test_approx_primitives_with_rdp
   industrial_robot_motion_interfaces
 )
 
+# Executable for test_planned_trajectory_reader
+add_executable(test_planned_trajectory_reader 
+  src/test_planned_trajectory_reader.cpp
+  src/planned_trajectory_reader.cpp
+)
+target_include_directories(test_planned_trajectory_reader PRIVATE include)
+ament_target_dependencies(test_planned_trajectory_reader
+  rclcpp 
+  moveit_msgs
+  trajectory_msgs
+  geometry_msgs
+)
+
 # Installation
 install(TARGETS
   test_rdp
   test_approx_primitives_with_rdp
+  test_planned_trajectory_reader
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 

@@ -22,7 +22,7 @@
 #include "geometry_msgs/msg/pose.hpp"
 #include "industrial_robot_motion_interfaces/msg/motion_primitive.hpp"
 #include "industrial_robot_motion_interfaces/msg/motion_sequence.hpp"
-#include <industrial_robot_motion_interfaces/msg/motion_argument.hpp>
+#include "industrial_robot_motion_interfaces/msg/motion_argument.hpp"
 
 namespace approx_primitives_with_rdp {
 

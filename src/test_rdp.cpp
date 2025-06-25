@@ -14,8 +14,8 @@
 //
 // Authors: Mathias Fuhrer
 
-#include "motion_primitives_from_planned_trajectory/rdp.hpp"
 #include <iostream>
+#include "motion_primitives_from_planned_trajectory/rdp.hpp"
 
 void printPoints(const std::string& title, const rdp::PointList& points) {
     std::cout << title << " (" << points.size() << " points):\n";

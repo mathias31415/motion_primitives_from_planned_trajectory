@@ -11,6 +11,8 @@
 
   <depend>rclcpp</depend>
   <depend>geometry_msgs</depend>
+  <depend>moveit_msgs</depend>
+  <depend>trajectory_msgs</depend>
   <depend>industrial_robot_motion_interfaces</depend>
 
   <export>

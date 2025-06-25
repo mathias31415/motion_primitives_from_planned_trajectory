@@ -14,9 +14,9 @@
 //
 // Authors: Mathias Fuhrer
 
-#include "motion_primitives_from_planned_trajectory/rdp.hpp"
 #include <cmath>
 #include <cstddef>
+#include "motion_primitives_from_planned_trajectory/rdp.hpp"
 
 namespace rdp {
 

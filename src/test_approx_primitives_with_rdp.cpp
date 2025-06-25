@@ -18,13 +18,11 @@
 #include <vector>
 #include <memory>
 #include <cmath>
-
 #include <geometry_msgs/msg/pose.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <industrial_robot_motion_interfaces/msg/motion_sequence.hpp>
 #include <industrial_robot_motion_interfaces/msg/motion_primitive.hpp>
 #include <industrial_robot_motion_interfaces/msg/motion_argument.hpp>
-
 #include "motion_primitives_from_planned_trajectory/approx_primitives_with_rdp.hpp"
 
 using geometry_msgs::msg::Pose;

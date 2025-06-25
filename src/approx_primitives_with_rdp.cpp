@@ -14,11 +14,10 @@
 //
 // Authors: Mathias Fuhrer
 
-#include "motion_primitives_from_planned_trajectory/approx_primitives_with_rdp.hpp"
-#include "motion_primitives_from_planned_trajectory/rdp.hpp"
-
 #include <iostream>
 #include <algorithm>
+#include "motion_primitives_from_planned_trajectory/approx_primitives_with_rdp.hpp"
+#include "motion_primitives_from_planned_trajectory/rdp.hpp"
 
 using geometry_msgs::msg::Pose;
 using geometry_msgs::msg::PoseStamped;
