@@ -26,6 +26,8 @@
 #include "motion_primitives_from_planned_trajectory/approx_primitives_with_rdp.hpp"
 #include "motion_primitives_from_planned_trajectory/pose_marker_visualizer.hpp"
 #include "motion_primitives_from_planned_trajectory/execute_motion_client.hpp"
+#include "motion_primitives_from_planned_trajectory/joint_state_logger.hpp"
+
 
 #define DATA_DIR "src/motion_primitives_from_planned_trajectory/data"
 
@@ -45,16 +47,16 @@ int main(int argc, char** argv)
     auto node = std::make_shared<PlannedTrajectoryReader>();
 
     // Generate target path for CSV file (with timestamp)
-    std::ostringstream filename;
+    std::ostringstream filename_planned_traj;
     auto now = std::chrono::system_clock::now();
     auto t = std::chrono::system_clock::to_time_t(now);
     std::tm tm = *std::localtime(&t);
 
-    filename << DATA_DIR << "/trajectory_"
+    filename_planned_traj << DATA_DIR << "/trajectory_"
              << std::put_time(&tm, "%Y%m%d_%H%M%S")
              << "_planned.csv";
 
-    std::string output_file = filename.str();
+    std::string output_file_planned_traj = filename_planned_traj.str();
 
     // Create data directory if necessary
     if (!std::filesystem::exists(DATA_DIR)) {
@@ -93,7 +95,7 @@ int main(int argc, char** argv)
     }
 
     // Save FK poses to CSV
-    node->writeToCSV(fk_poses, output_file);
+    node->writeToCSV(fk_poses, output_file_planned_traj);
 
     // Prompt user for motion type
     std::string user_input_moprim;
@@ -124,7 +126,7 @@ int main(int argc, char** argv)
 
     if (method == "1") {
         motion_sequence = approxPtpPrimitivesWithRDP(joint_positions, epsilon, blend_radius, velocity, acceleration);
-        RCLCPP_INFO(node->get_logger(), "Approximated PTP motion sequence with %zu primitives", motion_sequence.motions.size());
+        // RCLCPP_INFO(node->get_logger(), "Approximated PTP motion sequence with %zu primitives", motion_sequence.motions.size());
 
         // Match joint positions and retrieve corresponding FK pose
         for (const auto& primitive : motion_sequence.motions) {
@@ -151,7 +153,7 @@ int main(int argc, char** argv)
         }
     } else if (method == "2") {
         motion_sequence = approxLinPrimitivesWithRDP(fk_poses, epsilon, blend_radius, velocity, acceleration);
-        RCLCPP_INFO(node->get_logger(), "Approximated LIN motion sequence with %zu primitives", motion_sequence.motions.size());
+        // RCLCPP_INFO(node->get_logger(), "Approximated LIN motion sequence with %zu primitives", motion_sequence.motions.size());
 
         for (const auto& primitive : motion_sequence.motions) {
             for (const auto& pose_stamped : primitive.poses) {
@@ -162,27 +164,13 @@ int main(int argc, char** argv)
         RCLCPP_ERROR(node->get_logger(), "Invalid method selected: %s", method.c_str());
     }
 
-    RCLCPP_INFO(node->get_logger(), "Reduced poses:");
-    for (size_t i = 0; i < reduced_poses.size(); ++i) {
-        const auto& pose = reduced_poses[i];
-        RCLCPP_INFO_STREAM(node->get_logger(),
-            "Pose [" << i << "]: "
-                    << "Position(x=" << pose.position.x
-                    << ", y=" << pose.position.y
-                    << ", z=" << pose.position.z << "), "
-                    << "Orientation(x=" << pose.orientation.x
-                    << ", y=" << pose.orientation.y
-                    << ", z=" << pose.orientation.z
-                    << ", w=" << pose.orientation.w << ")"
-        );
-    }
+    // TODO(mathias31415): Save reduced joints or poses to CSV file
 
     PoseMarkerVisualizer visualizer(node);
     std::string frame_id = "base";
     std::string marker_ns = "motion_primitive_goal_poses";
     visualizer.publishPoseMarkersToRViz(reduced_poses, frame_id, marker_ns);
 
-    // TODO: publish markers, execute primitives etc.
     std::string user_input_execute;
     while (true) {
         std::cout << "Do you want to continue with motion primitive execution? (y/N): ";
@@ -198,10 +186,15 @@ int main(int argc, char** argv)
             // Setup motion execution client
             auto motion_node = std::make_shared<ExecuteMotionClient>();
 
-            // Start logging
-            // std::string executed_csv_path = save_dir + "/trajectory_" + timestamp + "_executed.csv";
-            // JointStateLogger joint_state_logger(motion_node, executed_csv_path);
-            // joint_state_logger.start();
+            // Start logging trajectory to compare planned and executed trajectory
+            std::ostringstream filename_executed_traj;
+            filename_executed_traj << DATA_DIR << "/trajectory_"
+                    << std::put_time(&tm, "%Y%m%d_%H%M%S")
+                    << "_executed.csv";
+            std::string output_file_executed_traj = filename_executed_traj.str();
+
+            JointStateLogger joint_state_logger(motion_node, output_file_executed_traj);
+            joint_state_logger.start();
 
             // Send motion sequence
             motion_node->send_motion_sequence(motion_sequence);
@@ -209,8 +202,7 @@ int main(int argc, char** argv)
             // Spin node while executing
             rclcpp::spin(motion_node);
 
-            // // Stop logging
-            // joint_state_logger.stop();
+            // joint_state_logger.stop(); // not needed since destructor will call stop() when motion_node gets destroyed
 
             break;
         } else if (user_input_execute.empty() || user_input_execute == "n" || user_input_execute == "no") {
