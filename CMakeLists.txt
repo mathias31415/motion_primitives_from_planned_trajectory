@@ -48,11 +48,30 @@ ament_target_dependencies(test_planned_trajectory_reader
   geometry_msgs
 )
 
+
+# Executable for process_trajectory_to_motion_primitives
+add_executable(process_trajectory_to_motion_primitives 
+  src/process_trajectory_to_motion_primitives.cpp
+  src/planned_trajectory_reader.cpp
+  src/approx_primitives_with_rdp.cpp
+  src/rdp.cpp
+  src/fk_client.cpp
+)
+target_include_directories(process_trajectory_to_motion_primitives PRIVATE include)
+ament_target_dependencies(process_trajectory_to_motion_primitives
+  rclcpp 
+  moveit_msgs
+  trajectory_msgs
+  geometry_msgs
+  industrial_robot_motion_interfaces
+)
+
 # Installation
 install(TARGETS
   test_rdp
   test_approx_primitives_with_rdp
   test_planned_trajectory_reader
+  process_trajectory_to_motion_primitives
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 

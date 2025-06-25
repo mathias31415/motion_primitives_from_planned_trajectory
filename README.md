@@ -28,7 +28,7 @@ ros2 launch ur_moveit_config ur_moveit.launch.py ur_type:=ur10e launch_rviz:=tru
 ## Process planned trajectory
 Start the python script with the following command:
 ```
-ros2 run motion_primitives_from_planned_trajectory process_trajectory_to_primitives
+ros2 run motion_primitives_from_planned_trajectory process_trajectory_to_motion_primitives
 ```
 Then plan a trajectory in RViz with MoveIt by pressing `plan`. The python script will:
     1. Read the planned trajectory from `/display_planned_path`.
