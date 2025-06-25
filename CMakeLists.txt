@@ -7,16 +7,36 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(industrial_robot_motion_interfaces REQUIRED)
 
 # Include directory
 include_directories(include)
 
 # Executable for test_rdp
-add_executable(test_rdp src/test_rdp.cpp src/rdp.cpp)
+add_executable(test_rdp 
+  src/test_rdp.cpp 
+  src/rdp.cpp)
 target_include_directories(test_rdp PRIVATE include)
 
+# Executable for test_approx_primitives_with_rdp
+add_executable(test_approx_primitives_with_rdp
+  src/test_approx_primitives_with_rdp.cpp
+  src/approx_primitives_with_rdp.cpp
+  src/rdp.cpp
+)
+target_include_directories(test_approx_primitives_with_rdp PRIVATE include)
+ament_target_dependencies(test_approx_primitives_with_rdp
+  rclcpp
+  geometry_msgs
+  industrial_robot_motion_interfaces
+)
+
 # Installation
-install(TARGETS test_rdp
+install(TARGETS
+  test_rdp
+  test_approx_primitives_with_rdp
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 
