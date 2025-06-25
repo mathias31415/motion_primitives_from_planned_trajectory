@@ -12,6 +12,9 @@ find_package(geometry_msgs REQUIRED)
 find_package(moveit_msgs REQUIRED)
 find_package(trajectory_msgs REQUIRED)
 find_package(industrial_robot_motion_interfaces REQUIRED)
+find_package(visualization_msgs REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 
 # Include directory
 include_directories(include)
@@ -23,6 +26,7 @@ add_executable(process_trajectory_to_motion_primitives
   src/approx_primitives_with_rdp.cpp
   src/rdp.cpp
   src/fk_client.cpp
+  src/pose_marker_visualizer.cpp
 )
 target_include_directories(process_trajectory_to_motion_primitives PRIVATE include)
 ament_target_dependencies(process_trajectory_to_motion_primitives
@@ -30,6 +34,9 @@ ament_target_dependencies(process_trajectory_to_motion_primitives
   moveit_msgs
   trajectory_msgs
   geometry_msgs
+  visualization_msgs
+  tf2
+  tf2_geometry_msgs
   industrial_robot_motion_interfaces
 )
 

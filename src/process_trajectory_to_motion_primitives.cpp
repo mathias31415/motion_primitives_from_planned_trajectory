@@ -14,6 +14,7 @@
 //
 // Authors: Mathias Fuhrer
 
+#include <iostream>
 #include <chrono>
 #include <iomanip>
 #include <sstream>
@@ -21,15 +22,29 @@
 #include <rclcpp/rclcpp.hpp>
 #include "motion_primitives_from_planned_trajectory/planned_trajectory_reader.hpp"
 #include "motion_primitives_from_planned_trajectory/fk_client.hpp"
+#include "industrial_robot_motion_interfaces/msg/motion_sequence.hpp"
+#include "motion_primitives_from_planned_trajectory/approx_primitives_with_rdp.hpp"
+#include "motion_primitives_from_planned_trajectory/pose_marker_visualizer.hpp" 
+
 
 #define DATA_DIR "src/motion_primitives_from_planned_trajectory/data"
+
+using geometry_msgs::msg::Pose;
+using industrial_robot_motion_interfaces::msg::MotionSequence;
+using approx_primitives_with_rdp::approxPtpPrimitivesWithRDP;
+using approx_primitives_with_rdp::approxLinPrimitivesWithRDP;
+
+double epsilon = 0.01;
+double blend_radius = 0.1;
+double velocity = 0.5;
+double acceleration = 0.5;
 
 int main(int argc, char** argv)
 {
     rclcpp::init(argc, argv);
     auto node = std::make_shared<PlannedTrajectoryReader>();
 
-    // Erzeuge Zielpfad für CSV-Datei mit Zeitstempel
+    // Generate target path for CSV file (with timestamp)
     std::ostringstream filename;
     auto now = std::chrono::system_clock::now();
     auto t = std::chrono::system_clock::to_time_t(now);
@@ -41,7 +56,7 @@ int main(int argc, char** argv)
 
     std::string output_file = filename.str();
 
-    // Erzeuge data-Verzeichnis falls nötig
+    // Create data directory if necessary
     if (!std::filesystem::exists(DATA_DIR)) {
         try {
             std::filesystem::create_directories(DATA_DIR);
@@ -50,9 +65,7 @@ int main(int argc, char** argv)
         }
     }
 
-    RCLCPP_INFO(node->get_logger(), "Waiting for planned trajectory...");
-
-    // Spin bis Trajektorie empfangen
+    // Spin until a trajectory is received
     rclcpp::Rate rate(10);
     while (rclcpp::ok()) {
         rclcpp::spin_some(node);
@@ -62,29 +75,152 @@ int main(int argc, char** argv)
         rate.sleep();
     }
 
-    // Starte FK-Client
+    // Start FK client
     FKClient fk_client(node);
-
     const auto& joint_names = node->getJointNames();
     const auto& points = node->getTrajectoryPoints();
 
-    std::vector<geometry_msgs::msg::Pose> fk_poses;
+    std::vector<Pose> fk_poses;
+    std::vector<std::vector<double>> joint_positions;
     fk_poses.reserve(points.size());
+    joint_positions.reserve(points.size());
 
-    for (size_t i = 0; i < points.size(); ++i) {
-        const auto& positions = points[i].positions;
-        auto pose_opt = fk_client.computeFK(joint_names, positions);
+    for (const auto& point : points) {
+        joint_positions.push_back(point.positions);
 
-        if (pose_opt.has_value()) {
-            fk_poses.push_back(pose_opt.value());
+        auto pose_opt = fk_client.computeFK(joint_names, point.positions);
+        fk_poses.push_back(pose_opt.value_or(Pose()));
+    }
+
+    // Save FK poses to CSV
+    node->writeToCSV(fk_poses, output_file);
+
+    // Prompt user for motion type
+    std::string user_input_moprim;
+    std::string method = "1";  // Default to PTP
+
+    while (true) {
+        std::cout << "Which motion type should be used?\n"
+                  << "[1] PTP (default)\n"
+                  << "[2] LIN\n"
+                  << "(Cancel with Ctrl+C)\n> ";
+        std::getline(std::cin, user_input_moprim);
+
+        if (user_input_moprim.empty()) {
+            break;  // default
+        }
+
+        if (user_input_moprim == "1" || user_input_moprim == "2") {
+            method = user_input_moprim;
+            break;
         } else {
-            fk_poses.emplace_back();  // leere Pose bei Fehler
+            std::cout << "Invalid input. Please enter '1' for PTP or '2' for LIN." << std::endl;
         }
     }
 
-    // Exportiere als CSV
-    node->writeToCSV(fk_poses, output_file);
-    RCLCPP_INFO(node->get_logger(), "Saved CSV to: %s", output_file.c_str());
+    // Approximation step
+    MotionSequence motion_sequence;
+    std::vector<Pose> reduced_poses;
+
+    if (method == "1") {
+        motion_sequence = approxPtpPrimitivesWithRDP(joint_positions, epsilon, blend_radius, velocity, acceleration);
+        RCLCPP_INFO(node->get_logger(), "Approximated PTP motion sequence with %zu primitives", motion_sequence.motions.size());
+
+        // Match joint positions and retrieve corresponding FK pose
+        for (const auto& primitive : motion_sequence.motions) {
+            if (primitive.type != industrial_robot_motion_interfaces::msg::MotionPrimitive::LINEAR_JOINT) {
+                continue;
+            }
+
+            const auto& joint_vec = primitive.joint_positions;
+            auto match_it = std::find_if(joint_positions.begin(), joint_positions.end(),
+                [&joint_vec](const std::vector<double>& jp) {
+                    if (jp.size() != joint_vec.size()) return false;
+                    for (size_t i = 0; i < jp.size(); ++i) {
+                        if (std::abs(jp[i] - joint_vec[i]) > 1e-5) return false;
+                    }
+                    return true;
+                });
+
+            if (match_it != joint_positions.end()) {
+                size_t match_idx = std::distance(joint_positions.begin(), match_it);
+                reduced_poses.push_back(fk_poses[match_idx]);
+            } else {
+                RCLCPP_WARN(node->get_logger(), "No FK match found for joint values in primitive.");
+            }
+        }
+    } else if (method == "2") {
+        motion_sequence = approxLinPrimitivesWithRDP(fk_poses, epsilon, blend_radius, velocity, acceleration);
+        RCLCPP_INFO(node->get_logger(), "Approximated LIN motion sequence with %zu primitives", motion_sequence.motions.size());
+
+        for (const auto& primitive : motion_sequence.motions) {
+            for (const auto& pose_stamped : primitive.poses) {
+                reduced_poses.push_back(pose_stamped.pose);
+            }
+    }
+    } else {
+        RCLCPP_ERROR(node->get_logger(), "Invalid method selected: %s", method.c_str());
+    }
+
+    RCLCPP_INFO(node->get_logger(), "Reduced poses:");
+    for (size_t i = 0; i < reduced_poses.size(); ++i) {
+        const auto& pose = reduced_poses[i];
+        RCLCPP_INFO_STREAM(node->get_logger(),
+            "Pose [" << i << "]: "
+                    << "Position(x=" << pose.position.x
+                    << ", y=" << pose.position.y
+                    << ", z=" << pose.position.z << "), "
+                    << "Orientation(x=" << pose.orientation.x
+                    << ", y=" << pose.orientation.y
+                    << ", z=" << pose.orientation.z
+                    << ", w=" << pose.orientation.w << ")"
+        );
+    }
+
+    PoseMarkerVisualizer visualizer(node);
+    std::string frame_id = "base";
+    std::string marker_ns = "motion_primitive_goal_poses";
+    visualizer.publishPoseMarkersToRViz(reduced_poses, frame_id, marker_ns);
+
+    // TODO: publish markers, execute primitives etc.
+    std::string user_input_execute;
+    while (true) {
+        std::cout << "Do you want to continue with motion primitive execution? (y/N): ";
+        std::getline(std::cin, user_input_execute);
+
+        // Convert to lowercase
+        std::transform(user_input_execute.begin(), user_input_execute.end(), user_input_execute.begin(), ::tolower);
+
+        if (user_input_execute == "y" || user_input_execute == "yes") {
+            visualizer.deletePoseMarkers(static_cast<int>(reduced_poses.size()), frame_id, marker_ns);
+            RCLCPP_INFO(node->get_logger(), "Starting execution of motion primitives...");
+
+            // // Setup motion execution client
+            // auto motion_node = std::make_shared<ExecuteMotionClient>();
+            // std::string executed_csv_path = save_dir + "/trajectory_" + timestamp + "_executed.csv";
+
+            // // Start logging
+            // JointStateLogger joint_state_logger(motion_node, executed_csv_path);
+            // joint_state_logger.start();
+
+            // // Send motion sequence
+            // motion_node->sendMotionSequence(motion_sequence_msg);
+
+            // // Spin node while executing
+            // rclcpp::spin(motion_node);
+
+            // // Stop logging
+            // joint_state_logger.stop();
+
+            break;
+        } else if (user_input_execute.empty() || user_input_execute == "n" || user_input_execute == "no") {
+            RCLCPP_INFO(node->get_logger(), "Exiting without primitive execution.");
+            visualizer.deletePoseMarkers(static_cast<int>(reduced_poses.size()), frame_id, marker_ns);
+            break;
+        } else {
+            std::cout << "Invalid input." << std::endl;
+        }
+    }
 
     rclcpp::shutdown();
     return 0;
