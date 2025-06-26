@@ -41,6 +41,55 @@ double blend_radius = 0.1;
 double velocity = 0.5;
 double acceleration = 0.5;
 
+void writeJointPositionsToCSV(const std::vector<std::vector<double>>& joint_positions,
+                               const std::vector<std::string>& joint_names,
+                               const std::string& filename)
+{
+    std::ofstream file(filename);
+    if (!file.is_open()) {
+        std::cerr << "Failed to open file for writing: " << filename << std::endl;
+        return;
+    }
+
+    // Header
+    for (size_t i = 0; i < joint_names.size(); ++i) {
+        file << joint_names[i];
+        if (i < joint_names.size() - 1) file << ",";
+    }
+    file << "\n";
+
+    // Values
+    for (const auto& vec : joint_positions) {
+        for (size_t i = 0; i < vec.size(); ++i) {
+            file << vec[i];
+            if (i < vec.size() - 1) file << ",";
+        }
+        file << "\n";
+    }
+
+    file.close();
+}
+void writePosesToCSV(const std::vector<Pose>& poses,
+                     const std::string& filename)
+{
+    std::ofstream file(filename);
+    if (!file.is_open()) {
+        std::cerr << "Failed to open file for writing: " << filename << std::endl;
+        return;
+    }
+    // Header
+    file << "pose_x,pose_y,pose_z,pose_qx,pose_qy,pose_qz,pose_qw\n";
+    // Values
+    for (const auto& pose : poses) {
+        file << pose.position.x << "," << pose.position.y << "," << pose.position.z << ","
+             << pose.orientation.x << "," << pose.orientation.y << ","
+             << pose.orientation.z << "," << pose.orientation.w << "\n";
+    }
+
+    file.close();
+}
+
+
 int main(int argc, char** argv)
 {
     rclcpp::init(argc, argv);
@@ -128,12 +177,14 @@ int main(int argc, char** argv)
         motion_sequence = approxPtpPrimitivesWithRDP(joint_positions, epsilon, blend_radius, velocity, acceleration);
         // RCLCPP_INFO(node->get_logger(), "Approximated PTP motion sequence with %zu primitives", motion_sequence.motions.size());
 
+        std::vector<std::vector<double>> reduced_joint_positions;
         // Match joint positions and retrieve corresponding FK pose
         for (const auto& primitive : motion_sequence.motions) {
             if (primitive.type != industrial_robot_motion_interfaces::msg::MotionPrimitive::LINEAR_JOINT) {
                 continue;
             }
-
+            reduced_joint_positions.push_back(primitive.joint_positions);
+            // Find the FK pose that matches the joint positions in this primitive
             const auto& joint_vec = primitive.joint_positions;
             auto match_it = std::find_if(joint_positions.begin(), joint_positions.end(),
                 [&joint_vec](const std::vector<double>& jp) {
@@ -151,6 +202,16 @@ int main(int argc, char** argv)
                 RCLCPP_WARN(node->get_logger(), "No FK match found for joint values in primitive.");
             }
         }
+
+        // Save reduced joint positions to CSV
+        std::ostringstream filename_reduced;
+        filename_reduced << DATA_DIR << "/trajectory_"
+             << std::put_time(&tm, "%Y%m%d_%H%M%S")
+             << "_reduced_PTP_joint.csv";
+        std::string output_file_reduced_traj = filename_reduced.str();
+        writeJointPositionsToCSV(reduced_joint_positions, joint_names, output_file_reduced_traj);
+
+
     } else if (method == "2") {
         motion_sequence = approxLinPrimitivesWithRDP(fk_poses, epsilon, blend_radius, velocity, acceleration);
         // RCLCPP_INFO(node->get_logger(), "Approximated LIN motion sequence with %zu primitives", motion_sequence.motions.size());
@@ -159,7 +220,15 @@ int main(int argc, char** argv)
             for (const auto& pose_stamped : primitive.poses) {
                 reduced_poses.push_back(pose_stamped.pose);
             }
-    }
+        }
+        // Save reduced joint positions to CSV
+        std::ostringstream filename_reduced;
+        filename_reduced << DATA_DIR << "/trajectory_"
+             << std::put_time(&tm, "%Y%m%d_%H%M%S")
+             << "_reduced_LIN_cartesian.csv";
+        std::string output_file_reduced_traj = filename_reduced.str();
+        writePosesToCSV(reduced_poses, output_file_reduced_traj);
+
     } else {
         RCLCPP_ERROR(node->get_logger(), "Invalid method selected: %s", method.c_str());
     }

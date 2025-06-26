@@ -65,7 +65,7 @@ void PlannedTrajectoryReader::writeToCSV(const std::vector<geometry_msgs::msg::P
     for (const auto& name : joint_names_) file << "," << name << "_pos";
     for (const auto& name : joint_names_) file << "," << name << "_vel";
     for (const auto& name : joint_names_) file << "," << name << "_acc";
-    file << ",fk_x,fk_y,fk_z,fk_qx,fk_qy,fk_qz,fk_qw\n";
+    file << ",pose_x,pose_y,pose_z,pose_qx,pose_qy,pose_qz,pose_qw\n";
 
     for (size_t i = 0; i < trajectory_points_.size(); ++i) {
         const auto& pt = trajectory_points_[i];
