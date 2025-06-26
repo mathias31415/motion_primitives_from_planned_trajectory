@@ -27,7 +27,7 @@
 #include "motion_primitives_from_planned_trajectory/pose_marker_visualizer.hpp"
 #include "motion_primitives_from_planned_trajectory/execute_motion_client.hpp"
 #include "motion_primitives_from_planned_trajectory/joint_state_logger.hpp"
-
+#include "motion_primitives_from_planned_trajectory/trajectory_utils.hpp"
 
 #define DATA_DIR "src/motion_primitives_from_planned_trajectory/data"
 
@@ -126,17 +126,24 @@ int main(int argc, char** argv)
         rate.sleep();
     }
 
+    const auto& joint_names = node->getJointNames();
+    const auto& traj_points = node->getTrajectoryPoints();
+
+    // Check if first trajectory point matches the robot's current joint state
+    if (!trajectory_utils::isStartStateMatching(node, joint_names, traj_points)) {
+        RCLCPP_ERROR(node->get_logger(), "First trajectory point doesn't match the robot's current joint state. Execution not safe.");
+        rclcpp::shutdown();
+        return 1;
+    }
+
     // Start FK client
     FKClient fk_client(node);
-    const auto& joint_names = node->getJointNames();
-    const auto& points = node->getTrajectoryPoints();
-
     std::vector<Pose> fk_poses;
     std::vector<std::vector<double>> joint_positions;
-    fk_poses.reserve(points.size());
-    joint_positions.reserve(points.size());
+    fk_poses.reserve(traj_points.size());
+    joint_positions.reserve(traj_points.size());
 
-    for (const auto& point : points) {
+    for (const auto& point : traj_points) {
         joint_positions.push_back(point.positions);
 
         auto pose_opt = fk_client.computeFK(joint_names, point.positions);
@@ -232,8 +239,6 @@ int main(int argc, char** argv)
     } else {
         RCLCPP_ERROR(node->get_logger(), "Invalid method selected: %s", method.c_str());
     }
-
-    // TODO(mathias31415): Save reduced joints or poses to CSV file
 
     PoseMarkerVisualizer visualizer(node);
     std::string frame_id = "base";

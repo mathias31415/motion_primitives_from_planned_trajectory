@@ -31,6 +31,7 @@ add_executable(process_trajectory_to_motion_primitives
   src/pose_marker_visualizer.cpp
   src/execute_motion_client.cpp
   src/joint_state_logger.cpp
+  src/trajectory_utils.cpp
 )
 target_include_directories(process_trajectory_to_motion_primitives PRIVATE include)
 ament_target_dependencies(process_trajectory_to_motion_primitives
