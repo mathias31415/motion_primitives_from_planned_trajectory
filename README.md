@@ -31,17 +31,17 @@ Start the python script with the following command:
 ros2 run motion_primitives_from_planned_trajectory process_trajectory_to_motion_primitives
 ```
 Then plan a trajectory in RViz with MoveIt by pressing `plan`. The python script will:
-    1. Read the planned trajectory from `/display_planned_path`.
-    2. Calculate the endefector pose for every point in the trajectory using the `/compute_fk` service.
-    3. Save the trajectory and endefector poses to a `trajectory_<date>_<time>_planned.csv` file.
-    4. Checks if first point in planned trajectory matches the current robot state (make sure to click Start State: `current` in RViz).
-    5. Ask user if path should get approximated with PTP or LIN Motion Primitives.
-    6. Approximate the path with motion primitives using Ramer-Douglas-Peucker Algorithm (RDP). For PTP in joint-space, for LIN in cartesian-space.
-    7. Save the reduced trajectory points to a `trajectory_<date>_<time>_reduced_<LIN_cartesian or PTP_joint>.csv` file.
-    8. Publish Goal-Poses of the Motion Primitives to `/visualization_marker_array` topic to visualize in RViz using MarkerArray
-    9. Ask user if planned primitives should get executed.
-    10. Execution using the [`motion_primitives_forward_controller`](https://github.com/b-robotized-forks/ros2_controllers/tree/motion_primitive_forward_controller/motion_primitives_forward_controller).
-    11. Save the executed trajectory to a `trajectory_<date>_<time>_executed.csv` file.
+1. Read the planned trajectory from `/display_planned_path`.
+2. Calculate the endefector pose for every point in the trajectory using the `/compute_fk` service.
+3. Save the trajectory and endefector poses to a `trajectory_<date>_<time>_planned.csv` file.
+4. Checks if first point in planned trajectory matches the current robot state (make sure to click Start State: `current` in RViz).
+5. Ask user if path should get approximated with PTP or LIN Motion Primitives.
+6. Approximate the path with motion primitives using Ramer-Douglas-Peucker Algorithm (RDP). For PTP in joint-space, for LIN in cartesian-space.
+7. Save the reduced trajectory points to a `trajectory_<date>_<time>_reduced_<LIN_cartesian or PTP_joint>.csv` file.
+8. Publish Goal-Poses of the Motion Primitives to `/visualization_marker_array` topic to visualize in RViz using MarkerArray
+9. Ask user if planned primitives should get executed.
+10. Execution using the [`motion_primitives_forward_controller`](https://github.com/b-robotized-forks/ros2_controllers/tree/motion_primitive_forward_controller/motion_primitives_forward_controller).
+11. Save the executed trajectory to a `trajectory_<date>_<time>_executed.csv` file.
 
 ## Analize saved data
 Enter the filenames into the `compare.py` script and run it with:
