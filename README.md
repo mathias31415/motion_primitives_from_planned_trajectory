@@ -43,7 +43,7 @@ Then plan a trajectory in RViz with MoveIt by pressing `plan`. The python script
 10. Execution using the [`motion_primitives_forward_controller`](https://github.com/b-robotized-forks/ros2_controllers/tree/motion_primitive_forward_controller/motion_primitives_forward_controller).
 11. Save the executed trajectory to a `trajectory_<date>_<time>_executed.csv` file.
 
-## Analize saved data
+## Analyze saved data
 Enter the filenames into the `compare.py` script and run it with:
 ```
 ros2 run motion_primitives_from_planned_trajectory compare.py

@@ -29,15 +29,30 @@ from motion_primitives_from_planned_trajectory.compare_planned_and_reduced_point
 def main():
     data_dir = "src/motion_primitives_from_planned_trajectory/data"
 
-    # filename_planned = "trajectory_20250626_095540_planned.csv" 
-    # filename_executed = "trajectory_20250626_095540_executed.csv" 
-    # filename_reduced = "trajectory_20250626_095540_reduced_LIN_cartesian.csv"
+    # LIN with empty scene
+    # filename_planned = "trajectory_20250626_115704_planned.csv" 
+    # filename_executed = "trajectory_20250626_115704_executed.csv" 
+    # filename_reduced = "trajectory_20250626_115704_reduced_LIN_cartesian.csv"
     # mode = "cartesian" 
 
-    filename_planned = "trajectory_20250626_095502_planned.csv" 
-    filename_executed = "trajectory_20250626_095502_executed.csv" 
-    filename_reduced = "trajectory_20250626_095502_reduced_PTP_joint.csv"
+    # PTP with empty scene
+    # filename_planned = "trajectory_20250626_115605_planned.csv" 
+    # filename_executed = "trajectory_20250626_115605_executed.csv" 
+    # filename_reduced = "trajectory_20250626_115605_reduced_PTP_joint.csv"
+    # mode = "joint" 
+
+     # LIN with obstacle
+    # filename_planned = "trajectory_20250626_121340_planned.csv" 
+    # filename_executed = "trajectory_20250626_121340_executed.csv" 
+    # filename_reduced = "trajectory_20250626_121340_reduced_LIN_cartesian.csv"
+    # mode = "cartesian" 
+
+    # PTP with obstacle
+    filename_planned = "trajectory_20250626_121048_planned.csv" 
+    filename_executed = "trajectory_20250626_121048_executed.csv" 
+    filename_reduced = "trajectory_20250626_121048_reduced_PTP_joint.csv"
     mode = "joint" 
+
 
     filepath_planned = os.path.join(data_dir, filename_planned)
     filepath_executed = os.path.join(data_dir, filename_executed)
