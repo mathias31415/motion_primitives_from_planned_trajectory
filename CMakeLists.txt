@@ -47,6 +47,14 @@ ament_target_dependencies(process_trajectory_to_motion_primitives
   industrial_robot_motion_interfaces
 )
 
+# Install Python modules and scripts
+ament_python_install_package(${PROJECT_NAME})
+
+install(PROGRAMS
+  motion_primitives_from_planned_trajectory/compare.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 # Installation
 install(TARGETS
   process_trajectory_to_motion_primitives
