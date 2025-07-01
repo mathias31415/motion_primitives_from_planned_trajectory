@@ -86,14 +86,14 @@ def compare_and_plot_joint_trajectories(filepath_planned, filepath_executed, joi
     print(f"Figure with comparison saved to: {plot_path}")
 
 def compare_and_plot_cartesian_trajectories(filepath_planned, filepath_executed, cart_pos_names, n_points):
-    # CSV Dateien laden
+    # Load CSV files
     df_planned = pd.read_csv(filepath_planned)
     df_executed = pd.read_csv(filepath_executed)
 
-    # Nur die ersten drei Werte (x, y, z) nutzen
+    # Use only the first three values (x, y, z)
     pos_names = cart_pos_names[:3]
 
-    # Positionswerte extrahieren
+    # Extract position values
     planned_positions = df_planned[pos_names].values
     executed_positions = df_executed[pos_names].values
 
@@ -105,7 +105,7 @@ def compare_and_plot_cartesian_trajectories(filepath_planned, filepath_executed,
     interp_executed = interp1d(np.linspace(0, 1, len(executed_positions)), executed_positions, axis=0)
     executed_resampled = interp_executed(np.linspace(0, 1, n_points))
 
-    # 3D RMSE berechnen
+    # Calculate 3D RMSE
     diffs = planned_resampled - executed_resampled
     squared_distances = np.sum(diffs**2, axis=1)
     rmse_3d = np.sqrt(np.mean(squared_distances))
@@ -131,7 +131,7 @@ def compare_and_plot_cartesian_trajectories(filepath_planned, filepath_executed,
     z_limits = [np.min(np.concatenate([planned_resampled[:,2], executed_resampled[:,2]])), 
                 np.max(np.concatenate([planned_resampled[:,2], executed_resampled[:,2]]) )]
 
-    # Gemeinsames Limit bestimmen (min und max über alle Achsen)
+    # Determine common limit (min and max over all axes)
     min_limit = min(x_limits[0], y_limits[0], z_limits[0])
     max_limit = max(x_limits[1], y_limits[1], z_limits[1])
 

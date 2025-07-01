@@ -16,6 +16,7 @@
 
 #include <iostream>
 #include <algorithm>
+#include <cmath>
 #include "motion_primitives_from_planned_trajectory/approx_primitives_with_rdp.hpp"
 #include "motion_primitives_from_planned_trajectory/rdp.hpp"
 
@@ -30,7 +31,6 @@ namespace approx_primitives_with_rdp {
 MotionSequence approxLinPrimitivesWithRDP(
     const std::vector<Pose>& poses_list,
     double epsilon,
-    double blend_radius,
     double velocity,
     double acceleration)
 {
@@ -42,21 +42,43 @@ MotionSequence approxLinPrimitivesWithRDP(
         return motion_sequence;
     }
 
-    // convert Pose list to PointList for RDP processing
+    // Convert Pose list to PointList for RDP processing
     rdp::PointList points;
     for (const auto& pose : poses_list) {
         points.push_back({pose.position.x, pose.position.y, pose.position.z});
     }
 
-    // reduce points using RDP algorithm
+    // Reduce points using RDP algorithm
     rdp::PointList reduced_points = rdp::rdpRecursive(points, epsilon);
 
-    // create motion primitives from reduced points (skipping the first point --> current position)
+    // Create motion primitives from reduced points (skipping the first point --> current position)
     for (size_t i = 1; i < reduced_points.size(); ++i) {
         MotionPrimitive primitive;
         primitive.type = MotionPrimitive::LINEAR_CARTESIAN;
-        primitive.blend_radius = blend_radius;
+        
+        if (i == reduced_points.size() - 1) {
+            // Last point: blend radius = 0
+            primitive.blend_radius = 0.0;
+        } else {
+            // Calculate distance to previous point
+            double dx = reduced_points[i][0] - reduced_points[i - 1][0];
+            double dy = reduced_points[i][1] - reduced_points[i - 1][1];
+            double dz = reduced_points[i][2] - reduced_points[i - 1][2];
+            double dist = std::sqrt(dx*dx + dy*dy + dz*dz);
 
+            double blend = 0.1 * dist;
+
+            // Clamp blend radius to [0, 0.1] with minimum threshold 0.001
+            if (blend < 0.001) {
+                blend = 0.0;
+            } else if (blend > 0.1) {
+                blend = 0.1;
+            }
+
+            primitive.blend_radius = blend;
+        }
+
+        // TODO(mathias31415): Calculate velocity and acceleration based on the time from start
         MotionArgument arg_vel;
         arg_vel.argument_name = "velocity";
         arg_vel.argument_value = velocity;
@@ -72,8 +94,8 @@ MotionSequence approxLinPrimitivesWithRDP(
         pose_stamped.pose.position.y = reduced_points[i][1];
         pose_stamped.pose.position.z = reduced_points[i][2];
 
-        // Orientierung aus Originalpunkt übernehmen (suche passenden Index)
-        // Falls nicht exakt gleich, suche closest point in original points:
+        // Take orientation from original point (find matching index)
+        // If not exactly equal, find closest point in original points:
         int matched_index = -1;
         double min_dist_sq = 1e12;
         for (size_t j = 0; j < points.size(); ++j) {
@@ -89,7 +111,7 @@ MotionSequence approxLinPrimitivesWithRDP(
         if (matched_index >= 0 && matched_index < static_cast<int>(poses_list.size())) {
             pose_stamped.pose.orientation = poses_list[matched_index].orientation;
         } else {
-            // Fehler ausgeben und Exception werfen
+            // Print error and throw exception
             std::cerr << "Error: Reduced point at index " << i << " could not be matched to any original point!" << std::endl;
             throw std::runtime_error("No matching original point found for reduced point in approxLinPrimitivesWithRDP.");
         }
@@ -121,7 +143,6 @@ MotionSequence approxLinPrimitivesWithRDP(
 MotionSequence approxPtpPrimitivesWithRDP(
     const std::vector<std::vector<double>>& joint_positions,
     double epsilon,
-    double blend_radius,
     double velocity,
     double acceleration)
 {
@@ -139,8 +160,11 @@ MotionSequence approxPtpPrimitivesWithRDP(
     for (size_t i = 1; i < reduced_points.size(); ++i) {
         MotionPrimitive primitive;
         primitive.type = MotionPrimitive::LINEAR_JOINT;
-        primitive.blend_radius = blend_radius;
 
+        // TODO(mathias31415): Calculate blend radius based on distance to previous point
+        primitive.blend_radius = 0.1;
+
+        // TODO(mathias31415): Calculate velocity and acceleration based on the time from start
         MotionArgument arg_vel;
         arg_vel.argument_name = "velocity";
         arg_vel.argument_value = velocity;

@@ -94,27 +94,27 @@ def main():
     pose_names=["pose_x", "pose_y", "pose_z", "pose_qx", "pose_qy", "pose_qz", "pose_qw"]
 
 
-      # Lade das executed CSV
+    # Load the executed CSV
     df_executed = pd.read_csv(filepath_executed)
 
-    # Prüfe, ob die pose_names Spalten vorhanden sind
+    # Check if the pose_names columns are present
     if not all(col in df_executed.columns for col in pose_names):
-        print("Pose columns fehlen im Executed-File, berechne sie mit FK...")
+        print("Pose columns are missing in the executed file, computing them with FK...")
 
         fk = FKClient()
 
-        # Liste zum Speichern der berechneten Posen
+        # List to store the computed poses
         poses = []
 
-        # Iteriere über jede Zeile
+        # Iterate over each row
         for idx, row in df_executed.iterrows():
             joint_positions = [row[joint_pos] for joint_pos in joint_pos_names]
             pose = fk.compute_fk(joint_names, joint_positions)
             if pose is None:
-                # Falls FK fehlschlägt, z.B. None, fülle mit NaN
+                # If FK fails, e.g. None, fill with NaN
                 poses.append([float('nan')] * 7)
             else:
-                # Extrahiere Pose als Liste [x, y, z, qx, qy, qz, qw]
+                # Extract pose as list [x, y, z, qx, qy, qz, qw]
                 poses.append([
                     pose.position.x,
                     pose.position.y,
@@ -127,16 +127,16 @@ def main():
 
         fk.shutdown()
 
-        # Füge die berechneten Posen als neue Spalten hinzu
+        # Add the computed poses as new columns
         for i, col in enumerate(pose_names):
             df_executed[col] = [pose[i] for pose in poses]
 
-        # Speichere das CSV mit den neuen Spalten zurück
+        # Save the CSV with the new columns
         df_executed.to_csv(filepath_executed, index=False)
-        print(f"Pose-Spalten in {filepath_executed} ergänzt und gespeichert.")
+        print(f"Pose columns added to {filepath_executed} and saved.")
 
     else:
-        print("Pose-Spalten sind bereits im Executed-File vorhanden.")
+        print("Pose columns are already present in the executed file.")
 
     # compare planned and reduced trajectory
     if mode == "cartesian":

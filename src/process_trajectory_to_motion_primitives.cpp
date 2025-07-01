@@ -37,7 +37,6 @@ using approx_primitives_with_rdp::approxPtpPrimitivesWithRDP;
 using approx_primitives_with_rdp::approxLinPrimitivesWithRDP;
 
 double epsilon = 0.01;
-double blend_radius = 0.1;
 double velocity = 0.5;
 double acceleration = 0.5;
 
@@ -181,7 +180,7 @@ int main(int argc, char** argv)
     std::vector<Pose> reduced_poses;
 
     if (method == "1") {
-        motion_sequence = approxPtpPrimitivesWithRDP(joint_positions, epsilon, blend_radius, velocity, acceleration);
+        motion_sequence = approxPtpPrimitivesWithRDP(joint_positions, epsilon, velocity, acceleration);
         // RCLCPP_INFO(node->get_logger(), "Approximated PTP motion sequence with %zu primitives", motion_sequence.motions.size());
 
         std::vector<std::vector<double>> reduced_joint_positions;
@@ -220,7 +219,7 @@ int main(int argc, char** argv)
 
 
     } else if (method == "2") {
-        motion_sequence = approxLinPrimitivesWithRDP(fk_poses, epsilon, blend_radius, velocity, acceleration);
+        motion_sequence = approxLinPrimitivesWithRDP(fk_poses, epsilon, velocity, acceleration);
         // RCLCPP_INFO(node->get_logger(), "Approximated LIN motion sequence with %zu primitives", motion_sequence.motions.size());
 
         for (const auto& primitive : motion_sequence.motions) {
