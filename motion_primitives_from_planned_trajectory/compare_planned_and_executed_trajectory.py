@@ -21,8 +21,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 import os
+from mpl_toolkits.mplot3d import Axes3D
 
-def compare_and_plot_trajectories(filepath_planned, filepath_executed, joint_pos_names, n_points):
+def compare_and_plot_joint_trajectories(filepath_planned, filepath_executed, joint_pos_names, n_points):
     # Load CSV files
     df_planned = pd.read_csv(filepath_planned)
     df_executed = pd.read_csv(filepath_executed)
@@ -84,6 +85,71 @@ def compare_and_plot_trajectories(filepath_planned, filepath_executed, joint_pos
     plt.show()
     print(f"Figure with comparison saved to: {plot_path}")
 
+def compare_and_plot_cartesian_trajectories(filepath_planned, filepath_executed, cart_pos_names, n_points):
+    # CSV Dateien laden
+    df_planned = pd.read_csv(filepath_planned)
+    df_executed = pd.read_csv(filepath_executed)
+
+    # Nur die ersten drei Werte (x, y, z) nutzen
+    pos_names = cart_pos_names[:3]
+
+    # Positionswerte extrahieren
+    planned_positions = df_planned[pos_names].values
+    executed_positions = df_executed[pos_names].values
+
+    # Resample planned trajectory (linear interpolation)
+    interp_planned = interp1d(np.linspace(0, 1, len(planned_positions)), planned_positions, axis=0)
+    planned_resampled = interp_planned(np.linspace(0, 1, n_points))
+
+    # Resample executed trajectory
+    interp_executed = interp1d(np.linspace(0, 1, len(executed_positions)), executed_positions, axis=0)
+    executed_resampled = interp_executed(np.linspace(0, 1, n_points))
+
+    # 3D RMSE berechnen
+    diffs = planned_resampled - executed_resampled
+    squared_distances = np.sum(diffs**2, axis=1)
+    rmse_3d = np.sqrt(np.mean(squared_distances))
+    print(f"3D RMSE of planned and executed trajectory: {rmse_3d:.6f}")
+
+    # 3D Plot
+    fig = plt.figure(figsize=(10, 8))
+    ax = fig.add_subplot(111, projection='3d')
+
+    ax.plot(planned_resampled[:, 0], planned_resampled[:, 1], planned_resampled[:, 2], 
+            'o-', color='blue', alpha=0.6, label='Planned', markersize=4)
+    ax.plot(executed_resampled[:, 0], executed_resampled[:, 1], executed_resampled[:, 2], 
+            'o-', color='red', alpha=0.6, label='Executed', markersize=4)
+
+    ax.set_xlabel('X in m')
+    ax.set_ylabel('Y in m')
+    ax.set_zlabel('Z in m')
+
+    x_limits = [np.min(np.concatenate([planned_resampled[:,0], executed_resampled[:,0]])), 
+            np.max(np.concatenate([planned_resampled[:,0], executed_resampled[:,0]]))]
+    y_limits = [np.min(np.concatenate([planned_resampled[:,1], executed_resampled[:,1]])), 
+                np.max(np.concatenate([planned_resampled[:,1], executed_resampled[:,1]]))]
+    z_limits = [np.min(np.concatenate([planned_resampled[:,2], executed_resampled[:,2]])), 
+                np.max(np.concatenate([planned_resampled[:,2], executed_resampled[:,2]]) )]
+
+    # Gemeinsames Limit bestimmen (min und max über alle Achsen)
+    min_limit = min(x_limits[0], y_limits[0], z_limits[0])
+    max_limit = max(x_limits[1], y_limits[1], z_limits[1])
+
+    ax.set_xlim(min_limit, max_limit)
+    ax.set_ylim(min_limit, max_limit)
+    ax.set_zlim(min_limit, max_limit)
+
+    # ax.set_title('Cartesian Trajectories Comparison')
+    fig.text(0.5, 0.01, f"RMSE: {rmse_3d:.6f}", ha='center', fontsize=14, style='italic')
+    ax.legend()
+    ax.grid(True)
+
+    # Save figure
+    base_name = os.path.basename(filepath_planned).replace('_planned.csv', '_compare_cartesian_planned_vs_executed.png')
+    plot_path = os.path.join(os.path.dirname(filepath_planned), base_name)
+    plt.savefig(plot_path)
+    plt.show()
+    print(f"3D figure with cartesian trajectory comparison saved to: {plot_path}")
 
 def main():
     data_dir = 'src/motion_primitives_from_planned_trajectory/data'
@@ -97,7 +163,7 @@ def main():
     ]
     n_points = 100
 
-    compare_and_plot_trajectories(filepath_planned, filepath_executed, joint_pos_names, n_points)
+    compare_and_plot_joint_trajectories(filepath_planned, filepath_executed, joint_pos_names, n_points)
 
 if __name__ == "__main__":
     main()

@@ -39,8 +39,8 @@ def plot_cartesian_trajectory(filepath_planned, filepath_reduced, pose_names):
     ax = fig.add_subplot(111, projection='3d')
 
     # Plot planned and reduced paths
-    ax.plot(x, y, z, marker='o', label='Planned Path', color='blue', alpha=0.5)
-    ax.plot(xr, yr, zr, marker='o', label='Reduced Path', color='orange')
+    ax.plot(x, y, z, marker='o', markersize=5, label='Planned Path', color='blue', alpha=0.5)
+    ax.plot(xr, yr, zr, marker='o', markersize=5, label='Reduced Path', color='orange')
 
     # Mark start and end of the planned path
     ax.scatter(x.iloc[0], y.iloc[0], z.iloc[0], color='red', s=50, label='Start')
@@ -69,9 +69,9 @@ def plot_cartesian_trajectory(filepath_planned, filepath_reduced, pose_names):
     ax.quiver(*first_pt, *first_rot.apply([0, 0, 1]), length=arrow_len, color='b', linestyle='dashed', normalize=True)
 
     # Axis labels and title
-    ax.set_xlabel('X')
-    ax.set_ylabel('Y')
-    ax.set_zlabel('Z')
+    ax.set_xlabel('X in m')
+    ax.set_ylabel('Y in m')
+    ax.set_zlabel('Z in m')
     ax.set_title("Cartesian Trajectory: Planned vs. Reduced")
     ax.legend()
 
