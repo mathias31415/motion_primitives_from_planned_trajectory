@@ -49,27 +49,38 @@ def compare_and_plot_trajectories(filepath_planned, filepath_executed, joint_pos
     total_rmse = np.sqrt(np.mean((planned_resampled - executed_resampled) ** 2))
     print(f'Total RMSE of planned and executed trajectory: {total_rmse:.6f}')
 
-    # Plot
-    fig, axes = plt.subplots(3, 2, figsize=(12, 10))
-    axes = axes.ravel()
+    # Plot in same style as reduced joint trajectory
+    fig, axs = plt.subplots(len(joint_pos_names), 1, figsize=(10, 2.5 * len(joint_pos_names)), sharex=True)
+
+    if len(joint_pos_names) == 1:
+        axs = [axs]
 
     for i, joint in enumerate(joint_pos_names):
-        axes[i].plot(planned_resampled[:, i], 'o--', color='blue', label='Planned', markersize=2)
-        axes[i].plot(executed_resampled[:, i], 'o-', color='red', label='Executed', markersize=2)
-        axes[i].set_title(f'{joint} (RMSE: {rmse[i]:.4f})')
-        axes[i].set_xlabel('Normalized index')
-        axes[i].set_ylabel('Joint-Position in radians')
-        axes[i].set_ylim(-3.5, 3.5)
-        axes[i].grid(True)
-        axes[i].legend()
+        axs[i].plot(planned_resampled[:, i], marker='o', markersize=5, color='blue', alpha=0.5, label='Planned')
+        axs[i].plot(executed_resampled[:, i], marker='o', markersize=5, color='red', alpha=0.5, label='Executed')
+        axs[i].set_ylabel("Angle in radians")
+        axs[i].set_title(f"{joint} (RMSE: {rmse[i]:.4f})")
+        axs[i].set_ylim(-3.5, 3.5)
+        axs[i].grid(True)
+
+    axs[-1].set_xlabel("Normalized Trajectory Index")
+
+    # Global legend
+    fig.legend(['Planned', 'Executed'],
+               loc='lower right',
+               bbox_to_anchor=(1, 0),
+               bbox_transform=fig.transFigure,
+               ncol=2)
+
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
 
     # Save figure
     base_name = os.path.basename(filepath_planned).replace('_planned.csv', '_compare_planned_vs_executed.png')
     plot_path = os.path.join(os.path.dirname(filepath_planned), base_name)
-    plt.tight_layout()
     plt.savefig(plot_path)
     plt.show()
     print(f"Figure with comparison saved to: {plot_path}")
+
 
 def main():
     data_dir = 'src/motion_primitives_from_planned_trajectory/data'

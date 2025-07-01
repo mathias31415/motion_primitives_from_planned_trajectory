@@ -123,13 +123,13 @@ def plot_joint_trajectory(filepath_planned, filepath_reduced, joint_names):
         axs = [axs]
 
     for i, joint in enumerate(joint_names):
-        axs[i].plot(planned[:, i], marker='o', label='Planned', color='blue', alpha=0.5)
+        axs[i].plot(planned[:, i], marker='o', markersize=5, label='Planned', color='blue', alpha=0.5)
 
         # Filter valid matches for plotting
         valid_reduced = [(idx, reduced[j, i]) for j, idx in enumerate(reduced_indices) if idx is not None]
         if valid_reduced:
             x_vals, y_vals = zip(*valid_reduced)
-            axs[i].plot(x_vals, y_vals, marker='o', label='Reduced', color='orange')
+            axs[i].plot(x_vals, y_vals, marker='o', markersize=5, label='Reduced', color='orange')
 
         axs[i].set_ylabel("Angle in radians")
         axs[i].set_title(joint)

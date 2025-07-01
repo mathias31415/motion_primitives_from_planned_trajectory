@@ -48,10 +48,16 @@ def main():
     # mode = "cartesian" 
 
     # PTP with obstacle
-    filename_planned = "trajectory_20250626_121048_planned.csv" 
-    filename_executed = "trajectory_20250626_121048_executed.csv" 
-    filename_reduced = "trajectory_20250626_121048_reduced_PTP_joint.csv"
+    # filename_planned = "trajectory_20250626_121048_planned.csv" 
+    # filename_executed = "trajectory_20250626_121048_executed.csv" 
+    # filename_reduced = "trajectory_20250626_121048_reduced_PTP_joint.csv"
+    # mode = "joint" 
+
+    filename_planned = "trajectory_20250701_085217_planned.csv" 
+    filename_executed = "trajectory_20250701_085217_executed.csv" 
+    filename_reduced = "trajectory_20250701_085217_reduced_PTP_joint.csv"
     mode = "joint" 
+
 
 
     filepath_planned = os.path.join(data_dir, filename_planned)
