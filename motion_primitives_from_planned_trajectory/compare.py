@@ -52,11 +52,17 @@ def main():
     # filename_executed = "trajectory_20250626_121048_executed.csv" 
     # filename_reduced = "trajectory_20250626_121048_reduced_PTP_joint.csv"
     # mode = "joint" 
+    
+    ################################################################################################
+    # filename_planned = "trajectory_20250701_092651_planned.csv" 
+    # filename_executed = "trajectory_20250701_092651_executed.csv" 
+    # filename_reduced = "trajectory_20250701_092651_reduced_PTP_joint.csv"
+    # mode = "joint" 
 
-    filename_planned = "trajectory_20250701_085217_planned.csv" 
-    filename_executed = "trajectory_20250701_085217_executed.csv" 
-    filename_reduced = "trajectory_20250701_085217_reduced_PTP_joint.csv"
-    mode = "joint" 
+    filename_planned = "trajectory_20250701_092904_planned.csv" 
+    filename_executed = "trajectory_20250701_092904_executed.csv" 
+    filename_reduced = "trajectory_20250701_092904_reduced_LIN_cartesian.csv"
+    mode = "cartesian" 
 
 
 
