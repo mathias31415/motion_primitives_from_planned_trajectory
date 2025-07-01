@@ -72,6 +72,9 @@ def compare_and_plot_trajectories(filepath_planned, filepath_executed, joint_pos
                bbox_transform=fig.transFigure,
                ncol=2)
 
+    # Add total RMSE text below the last plot
+    fig.text(0.5, 0.01, f"Total RMSE: {total_rmse:.6f}", ha='center', fontsize=14, style='italic')
+
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
 
     # Save figure
