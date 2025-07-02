@@ -180,7 +180,7 @@ int main(int argc, char** argv)
     std::vector<Pose> reduced_poses;
 
     if (method == "1") {
-        motion_sequence = approxPtpPrimitivesWithRDP(joint_positions, epsilon, velocity, acceleration);
+        motion_sequence = approxPtpPrimitivesWithRDP(joint_positions, fk_poses, epsilon, velocity, acceleration);
         // RCLCPP_INFO(node->get_logger(), "Approximated PTP motion sequence with %zu primitives", motion_sequence.motions.size());
 
         std::vector<std::vector<double>> reduced_joint_positions;

@@ -38,6 +38,7 @@ industrial_robot_motion_interfaces::msg::MotionSequence approxLinPrimitivesWithR
 // Approximate with PTP Primitives in Joint Space
 industrial_robot_motion_interfaces::msg::MotionSequence approxPtpPrimitivesWithRDP(
     const std::vector<std::vector<double>>& joint_positions,
+    const std::vector<geometry_msgs::msg::Pose>& poses_list,
     double epsilon = 0.01,
     double velocity = 0.01,
     double acceleration = 0.01
