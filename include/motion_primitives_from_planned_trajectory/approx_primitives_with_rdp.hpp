@@ -25,23 +25,29 @@
 #include "industrial_robot_motion_interfaces/msg/motion_argument.hpp"
 #include "motion_primitives_from_planned_trajectory/rdp.hpp"
 
+using MotionSequence = industrial_robot_motion_interfaces::msg::MotionSequence;
+
 namespace approx_primitives_with_rdp {
 
+struct PlannedTrajectoryPoint
+{
+    double time_from_start;
+    std::vector<double> joint_positions;
+    geometry_msgs::msg::Pose pose;
+};
+
 // Approximate with LIN Primitives in Cartesian Space
-industrial_robot_motion_interfaces::msg::MotionSequence approxLinPrimitivesWithRDP(
-    const std::vector<geometry_msgs::msg::Pose>& poses_list,
-    double epsilon = 0.01,
-    double velocity = 0.01,
-    double acceleration = 0.01
+MotionSequence approxLinPrimitivesWithRDP(
+    const std::vector<PlannedTrajectoryPoint>& trajectory,
+    double epsilon,
+    bool use_time_not_vel_and_acc = false
 );
 
 // Approximate with PTP Primitives in Joint Space
-industrial_robot_motion_interfaces::msg::MotionSequence approxPtpPrimitivesWithRDP(
-    const std::vector<std::vector<double>>& joint_positions,
-    const std::vector<geometry_msgs::msg::Pose>& poses_list,
-    double epsilon = 0.01,
-    double velocity = 0.01,
-    double acceleration = 0.01
+MotionSequence approxPtpPrimitivesWithRDP(
+    const std::vector<PlannedTrajectoryPoint>& trajectory,
+    double epsilon,
+    bool use_time_not_vel_and_acc = false
 );
 
 double calculateBlendRadius(

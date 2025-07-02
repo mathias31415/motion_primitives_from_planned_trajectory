@@ -31,7 +31,7 @@ public:
     const std::vector<std::string>& getJointNames() const;
     const std::vector<trajectory_msgs::msg::JointTrajectoryPoint>& getTrajectoryPoints() const;
 
-    void writeToCSV(const std::vector<geometry_msgs::msg::Pose>& fk_poses, const std::string& filepath) const;
+    // void writeToCSV(const std::vector<geometry_msgs::msg::Pose>& fk_poses, const std::string& filepath) const;
 
 private:
     void trajectoryCallback(const moveit_msgs::msg::DisplayTrajectory::SharedPtr msg);

@@ -35,10 +35,10 @@ using geometry_msgs::msg::Pose;
 using industrial_robot_motion_interfaces::msg::MotionSequence;
 using approx_primitives_with_rdp::approxPtpPrimitivesWithRDP;
 using approx_primitives_with_rdp::approxLinPrimitivesWithRDP;
+using approx_primitives_with_rdp::PlannedTrajectoryPoint;
 
-double epsilon = 0.01;
-double velocity = 0.5;
-double acceleration = 0.5;
+double rdp_epsilon = 0.01;
+bool use_time_not_vel_and_acc = true;
 
 void writeJointPositionsToCSV(const std::vector<std::vector<double>>& joint_positions,
                                const std::vector<std::string>& joint_names,
@@ -68,17 +68,15 @@ void writeJointPositionsToCSV(const std::vector<std::vector<double>>& joint_posi
 
     file.close();
 }
-void writePosesToCSV(const std::vector<Pose>& poses,
-                     const std::string& filename)
+
+void writePosesToCSV(const std::vector<Pose>& poses, const std::string& filename)
 {
     std::ofstream file(filename);
     if (!file.is_open()) {
         std::cerr << "Failed to open file for writing: " << filename << std::endl;
         return;
     }
-    // Header
     file << "pose_x,pose_y,pose_z,pose_qx,pose_qy,pose_qz,pose_qw\n";
-    // Values
     for (const auto& pose : poses) {
         file << pose.position.x << "," << pose.position.y << "," << pose.position.z << ","
              << pose.orientation.x << "," << pose.orientation.y << ","
@@ -88,6 +86,37 @@ void writePosesToCSV(const std::vector<Pose>& poses,
     file.close();
 }
 
+void writePlannedTrajectoryToCSV(const std::vector<PlannedTrajectoryPoint>& points,
+                                 const std::vector<std::string>& joint_names,
+                                 const std::string& filename)
+{
+    std::ofstream file(filename);
+    if (!file.is_open()) {
+        std::cerr << "Failed to open file: " << filename << std::endl;
+        return;
+    }
+
+    // Header
+    file << "time_from_start,";
+    for (const auto& name : joint_names) {
+        file << name << ",";
+    }
+    file << "pose_x,pose_y,pose_z,pose_qx,pose_qy,pose_qz,pose_qw\n";
+
+    // Data
+    for (const auto& pt : points) {
+        file << pt.time_from_start << ",";
+        for (const auto& val : pt.joint_positions) {
+            file << val << ",";
+        }
+        const auto& p = pt.pose.position;
+        const auto& o = pt.pose.orientation;
+        file << p.x << "," << p.y << "," << p.z << ","
+             << o.x << "," << o.y << "," << o.z << "," << o.w << "\n";
+    }
+
+    file.close();
+}
 
 int main(int argc, char** argv)
 {
@@ -137,20 +166,18 @@ int main(int argc, char** argv)
 
     // Start FK client
     FKClient fk_client(node);
-    std::vector<Pose> fk_poses;
-    std::vector<std::vector<double>> joint_positions;
-    fk_poses.reserve(traj_points.size());
-    joint_positions.reserve(traj_points.size());
+    std::vector<PlannedTrajectoryPoint> planned_trajectory;
+    planned_trajectory.reserve(traj_points.size());
 
     for (const auto& point : traj_points) {
-        joint_positions.push_back(point.positions);
-
-        auto pose_opt = fk_client.computeFK(joint_names, point.positions);
-        fk_poses.push_back(pose_opt.value_or(Pose()));
+        PlannedTrajectoryPoint pt;
+        pt.time_from_start = point.time_from_start.sec + point.time_from_start.nanosec * 1e-9;
+        pt.joint_positions = point.positions;
+        pt.pose = fk_client.computeFK(joint_names, point.positions).value_or(Pose());
+        planned_trajectory.push_back(pt);
     }
 
-    // Save FK poses to CSV
-    node->writeToCSV(fk_poses, output_file_planned_traj);
+    writePlannedTrajectoryToCSV(planned_trajectory, joint_names, output_file_planned_traj);
 
     // Prompt user for motion type
     std::string user_input_moprim;
@@ -175,13 +202,11 @@ int main(int argc, char** argv)
         }
     }
 
-    // Approximation step
     MotionSequence motion_sequence;
     std::vector<Pose> reduced_poses;
 
     if (method == "1") {
-        motion_sequence = approxPtpPrimitivesWithRDP(joint_positions, fk_poses, epsilon, velocity, acceleration);
-        // RCLCPP_INFO(node->get_logger(), "Approximated PTP motion sequence with %zu primitives", motion_sequence.motions.size());
+        motion_sequence = approxPtpPrimitivesWithRDP(planned_trajectory, rdp_epsilon, use_time_not_vel_and_acc);
 
         std::vector<std::vector<double>> reduced_joint_positions;
         // Match joint positions and retrieve corresponding FK pose
@@ -192,18 +217,17 @@ int main(int argc, char** argv)
             reduced_joint_positions.push_back(primitive.joint_positions);
             // Find the FK pose that matches the joint positions in this primitive
             const auto& joint_vec = primitive.joint_positions;
-            auto match_it = std::find_if(joint_positions.begin(), joint_positions.end(),
-                [&joint_vec](const std::vector<double>& jp) {
-                    if (jp.size() != joint_vec.size()) return false;
-                    for (size_t i = 0; i < jp.size(); ++i) {
-                        if (std::abs(jp[i] - joint_vec[i]) > 1e-5) return false;
+            auto match_it = std::find_if(planned_trajectory.begin(), planned_trajectory.end(),
+                [&joint_vec](const PlannedTrajectoryPoint& pt) {
+                    if (pt.joint_positions.size() != joint_vec.size()) return false;
+                    for (size_t i = 0; i < joint_vec.size(); ++i) {
+                        if (std::abs(pt.joint_positions[i] - joint_vec[i]) > 1e-5) return false;
                     }
                     return true;
                 });
 
-            if (match_it != joint_positions.end()) {
-                size_t match_idx = std::distance(joint_positions.begin(), match_it);
-                reduced_poses.push_back(fk_poses[match_idx]);
+            if (match_it != planned_trajectory.end()) {
+                reduced_poses.push_back(match_it->pose);
             } else {
                 RCLCPP_WARN(node->get_logger(), "No FK match found for joint values in primitive.");
             }
@@ -212,28 +236,24 @@ int main(int argc, char** argv)
         // Save reduced joint positions to CSV
         std::ostringstream filename_reduced;
         filename_reduced << DATA_DIR << "/trajectory_"
-             << std::put_time(&tm, "%Y%m%d_%H%M%S")
-             << "_reduced_PTP_joint.csv";
-        std::string output_file_reduced_traj = filename_reduced.str();
-        writeJointPositionsToCSV(reduced_joint_positions, joint_names, output_file_reduced_traj);
-
+                         << std::put_time(&tm, "%Y%m%d_%H%M%S")
+                         << "_reduced_PTP_joint.csv";
+        writeJointPositionsToCSV(reduced_joint_positions, joint_names, filename_reduced.str());
 
     } else if (method == "2") {
-        motion_sequence = approxLinPrimitivesWithRDP(fk_poses, epsilon, velocity, acceleration);
-        // RCLCPP_INFO(node->get_logger(), "Approximated LIN motion sequence with %zu primitives", motion_sequence.motions.size());
+        motion_sequence = approxLinPrimitivesWithRDP(planned_trajectory, rdp_epsilon, use_time_not_vel_and_acc);
 
         for (const auto& primitive : motion_sequence.motions) {
             for (const auto& pose_stamped : primitive.poses) {
                 reduced_poses.push_back(pose_stamped.pose);
             }
         }
-        // Save reduced joint positions to CSV
+
         std::ostringstream filename_reduced;
         filename_reduced << DATA_DIR << "/trajectory_"
-             << std::put_time(&tm, "%Y%m%d_%H%M%S")
-             << "_reduced_LIN_cartesian.csv";
-        std::string output_file_reduced_traj = filename_reduced.str();
-        writePosesToCSV(reduced_poses, output_file_reduced_traj);
+                         << std::put_time(&tm, "%Y%m%d_%H%M%S")
+                         << "_reduced_LIN_cartesian.csv";
+        writePosesToCSV(reduced_poses, filename_reduced.str());
 
     } else {
         RCLCPP_ERROR(node->get_logger(), "Invalid method selected: %s", method.c_str());
@@ -262,11 +282,10 @@ int main(int argc, char** argv)
             // Start logging trajectory to compare planned and executed trajectory
             std::ostringstream filename_executed_traj;
             filename_executed_traj << DATA_DIR << "/trajectory_"
-                    << std::put_time(&tm, "%Y%m%d_%H%M%S")
-                    << "_executed.csv";
-            std::string output_file_executed_traj = filename_executed_traj.str();
+                                   << std::put_time(&tm, "%Y%m%d_%H%M%S")
+                                   << "_executed.csv";
 
-            JointStateLogger joint_state_logger(motion_node, output_file_executed_traj);
+            JointStateLogger joint_state_logger(motion_node, filename_executed_traj.str());
             joint_state_logger.start();
 
             // Send motion sequence

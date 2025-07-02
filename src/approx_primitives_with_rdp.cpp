@@ -28,74 +28,80 @@ using industrial_robot_motion_interfaces::msg::MotionArgument;
 namespace approx_primitives_with_rdp {
 
 MotionSequence approxLinPrimitivesWithRDP(
-    const std::vector<Pose>& poses_list,
+    const std::vector<approx_primitives_with_rdp::PlannedTrajectoryPoint>& trajectory,
     double epsilon,
-    double velocity,
-    double acceleration)
+    bool use_time_not_vel_and_acc)
 {
     MotionSequence motion_sequence;
     std::vector<MotionPrimitive> motion_primitives;
 
-    if (poses_list.empty()) {
-        std::cerr << "[approxLinPrimitivesWithRDP] Warning: poses_list is empty." << std::endl;
+    if (trajectory.empty()) {
+        std::cerr << "[approxLinPrimitivesWithRDP] Warning: trajectory is empty." << std::endl;
         return motion_sequence;
     }
 
-    // Convert Pose list to PointList for RDP processing
     rdp::PointList points;
-    for (const auto& pose : poses_list) {
-        points.push_back({pose.position.x, pose.position.y, pose.position.z});
+    for (const auto& point : trajectory) {
+        points.push_back({point.pose.position.x, point.pose.position.y, point.pose.position.z});
     }
 
-    // Reduce points using RDP algorithm
     rdp::PointList reduced_points = rdp::rdpRecursive(points, epsilon);
 
-    // Create motion primitives from reduced points (skipping the first point --> current position)
     for (size_t i = 1; i < reduced_points.size(); ++i) {
         MotionPrimitive primitive;
         primitive.type = MotionPrimitive::LINEAR_CARTESIAN;
-        
+
         if (i == reduced_points.size() - 1) {
-            // Last point: blend radius = 0
             primitive.blend_radius = 0.0;
         } else {
-            // Calculate blend radius based on distance to previous point
             primitive.blend_radius = calculateBlendRadius(
                 reduced_points[i - 1], reduced_points[i], reduced_points[i + 1]);
         }
+        double velocity = -1.0;
+        double acceleration = -1.0;
+        double move_time = -1.0;
+        if (use_time_not_vel_and_acc) {
+            move_time = 2.0;
 
-        // TODO(mathias31415): Calculate velocity and acceleration based on the time from start
-        MotionArgument arg_vel;
-        arg_vel.argument_name = "velocity";
-        arg_vel.argument_value = velocity;
-        primitive.additional_arguments.push_back(arg_vel);
+            MotionArgument arg_time;
+            arg_time.argument_name = "move_time";
+            arg_time.argument_value = move_time;
+            primitive.additional_arguments.push_back(arg_time);
+        } else {
+            velocity = 1.0;
+            acceleration = 1.0;
 
-        MotionArgument arg_acc;
-        arg_acc.argument_name = "acceleration";
-        arg_acc.argument_value = acceleration;
-        primitive.additional_arguments.push_back(arg_acc);
+            MotionArgument arg_vel;
+            arg_vel.argument_name = "velocity";
+            arg_vel.argument_value = velocity;
+            primitive.additional_arguments.push_back(arg_vel);
+
+            MotionArgument arg_acc;
+            arg_acc.argument_name = "acceleration";
+            arg_acc.argument_value = acceleration;
+            primitive.additional_arguments.push_back(arg_acc);
+        }
 
         PoseStamped pose_stamped;
         pose_stamped.pose.position.x = reduced_points[i][0];
         pose_stamped.pose.position.y = reduced_points[i][1];
         pose_stamped.pose.position.z = reduced_points[i][2];
 
-        // Take orientation from original point (find matching index)
-        // If not exactly equal, find closest point in original points:
         int matched_index = -1;
         double min_dist_sq = 1e12;
-        for (size_t j = 0; j < points.size(); ++j) {
-            double dx = points[j][0] - reduced_points[i][0];
-            double dy = points[j][1] - reduced_points[i][1];
-            double dz = points[j][2] - reduced_points[i][2];
+        for (size_t j = 0; j < trajectory.size(); ++j) {
+            double dx = trajectory[j].pose.position.x - reduced_points[i][0];
+            double dy = trajectory[j].pose.position.y - reduced_points[i][1];
+            double dz = trajectory[j].pose.position.z - reduced_points[i][2];
             double dist_sq = dx*dx + dy*dy + dz*dz;
             if (dist_sq < min_dist_sq) {
                 min_dist_sq = dist_sq;
                 matched_index = static_cast<int>(j);
             }
         }
-        if (matched_index >= 0 && matched_index < static_cast<int>(poses_list.size())) {
-            pose_stamped.pose.orientation = poses_list[matched_index].orientation;
+
+        if (matched_index >= 0) {
+            pose_stamped.pose.orientation = trajectory[matched_index].pose.orientation;
         } else {
             // Print error and throw exception
             std::cerr << "Error: Reduced point at index " << i << " could not be matched to any original point!" << std::endl;
@@ -114,6 +120,7 @@ MotionSequence approxLinPrimitivesWithRDP(
           << pose_stamped.pose.orientation.z << ", "
           << pose_stamped.pose.orientation.w << "), "
           << "blend_radius = " << primitive.blend_radius << ", "
+          << "move_time = " << move_time << ", "
           << "velocity = " << velocity << ", "
           << "acceleration = " << acceleration
           << std::endl;
@@ -127,34 +134,29 @@ MotionSequence approxLinPrimitivesWithRDP(
 
 
 MotionSequence approxPtpPrimitivesWithRDP(
-    const std::vector<std::vector<double>>& joint_positions,
-    const std::vector<geometry_msgs::msg::Pose>& poses_list,
+    const std::vector<approx_primitives_with_rdp::PlannedTrajectoryPoint>& trajectory,
     double epsilon,
-    double velocity,
-    double acceleration)
+    bool use_time_not_vel_and_acc)
 {
     MotionSequence motion_sequence;
     std::vector<MotionPrimitive> motion_primitives;
 
-    if (joint_positions.empty()) {
-        std::cerr << "[approxPtpPrimitivesWithRDP] Warning: joint_positions is empty." << std::endl;
+    if (trajectory.empty()) {
+        std::cerr << "[approxPtpPrimitivesWithRDP] Warning: trajectory is empty." << std::endl;
         return motion_sequence;
     }
 
-    if (joint_positions.size() != poses_list.size()) {
-        std::cerr << "[approxPtpPrimitivesWithRDP] Error: joint_positions and poses_list must have the same length ("
-                  << joint_positions.size() << " vs " << poses_list.size() << ")" << std::endl;
-        return motion_sequence;
+    rdp::PointList points;
+    for (const auto& pt : trajectory) {
+        points.push_back(pt.joint_positions);
     }
 
-    rdp::PointList points = joint_positions;
     rdp::PointList reduced_points = rdp::rdpRecursive(points, epsilon);
 
     // --- Find indices of reduced points in original joint_positions ---
     std::vector<int> reduced_to_original_index(reduced_points.size(), -1);
     for (size_t i = 0; i < reduced_points.size(); ++i) {
         for (size_t j = 0; j < points.size(); ++j) {
-            reduced_to_original_index[i] = -1;
             if (points[j] == reduced_points[i]) {
                 reduced_to_original_index[i] = static_cast<int>(j);
                 break;
@@ -177,23 +179,37 @@ MotionSequence approxPtpPrimitivesWithRDP(
                 std::cerr << "[approxPtpPrimitivesWithRDP] Warning: Could not find all original indices at i=" << i << std::endl;
                 primitive.blend_radius = 0.0;
             } else {
-                rdp::Point prev_xyz = {poses_list[prev_index].position.x, poses_list[prev_index].position.y, poses_list[prev_index].position.z};
-                rdp::Point curr_xyz = {poses_list[curr_index].position.x, poses_list[curr_index].position.y, poses_list[curr_index].position.z};
-                rdp::Point next_xyz = {poses_list[next_index].position.x, poses_list[next_index].position.y, poses_list[next_index].position.z};
+                rdp::Point prev_xyz = {trajectory[prev_index].pose.position.x, trajectory[prev_index].pose.position.y, trajectory[prev_index].pose.position.z};
+                rdp::Point curr_xyz = {trajectory[curr_index].pose.position.x, trajectory[curr_index].pose.position.y, trajectory[curr_index].pose.position.z};
+                rdp::Point next_xyz = {trajectory[next_index].pose.position.x, trajectory[next_index].pose.position.y, trajectory[next_index].pose.position.z};
                 primitive.blend_radius = calculateBlendRadius(prev_xyz, curr_xyz, next_xyz);
             }
         }
 
-        // TODO(mathias31415): Calculate velocity and acceleration based on the time from start
-        MotionArgument arg_vel;
-        arg_vel.argument_name = "velocity";
-        arg_vel.argument_value = velocity;
-        primitive.additional_arguments.push_back(arg_vel);
+        double velocity = -1.0;
+        double acceleration = -1.0;
+        double move_time = -1.0;
+        if (use_time_not_vel_and_acc) {
+            move_time = 2.0;
 
-        MotionArgument arg_acc;
-        arg_acc.argument_name = "acceleration";
-        arg_acc.argument_value = acceleration;
-        primitive.additional_arguments.push_back(arg_acc);
+            MotionArgument arg_time;
+            arg_time.argument_name = "move_time";
+            arg_time.argument_value = move_time;
+            primitive.additional_arguments.push_back(arg_time);
+        } else {
+            velocity = 1.0;
+            acceleration = 1.0;
+
+            MotionArgument arg_vel;
+            arg_vel.argument_name = "velocity";
+            arg_vel.argument_value = velocity;
+            primitive.additional_arguments.push_back(arg_vel);
+
+            MotionArgument arg_acc;
+            arg_acc.argument_name = "acceleration";
+            arg_acc.argument_value = acceleration;
+            primitive.additional_arguments.push_back(arg_acc);
+        }
 
         primitive.joint_positions = reduced_points[i];
 
