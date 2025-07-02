@@ -40,9 +40,12 @@ double pointLineDistanceND(const Point& point, const Point& start, const Point& 
  *
  * @param points The list of input points.
  * @param epsilon Tolerance value: points closer than this distance to the line will be removed.
- * @return A simplified list of points.
+ * @param offset Offset for original indices (used in recursion).
+ * @return A pair consisting of:
+ *         - The simplified list of points.
+ *         - The list of indices (from the original input) corresponding to the retained points.
  */
-PointList rdpRecursive(const PointList& points, double epsilon);
+std::pair<PointList, std::vector<std::size_t>> rdpRecursive(const PointList& points, double epsilon, std::size_t offset = 0);
 
 } // namespace rdp
 

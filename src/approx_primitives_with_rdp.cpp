@@ -45,7 +45,8 @@ MotionSequence approxLinPrimitivesWithRDP(
         points.push_back({point.pose.position.x, point.pose.position.y, point.pose.position.z});
     }
 
-    rdp::PointList reduced_points = rdp::rdpRecursive(points, epsilon);
+    auto [reduced_points, reduced_indices] = rdp::rdpRecursive(points, epsilon);
+
 
     for (size_t i = 1; i < reduced_points.size(); ++i) {
         MotionPrimitive primitive;
@@ -86,27 +87,7 @@ MotionSequence approxLinPrimitivesWithRDP(
         pose_stamped.pose.position.x = reduced_points[i][0];
         pose_stamped.pose.position.y = reduced_points[i][1];
         pose_stamped.pose.position.z = reduced_points[i][2];
-
-        int matched_index = -1;
-        double min_dist_sq = 1e12;
-        for (size_t j = 0; j < trajectory.size(); ++j) {
-            double dx = trajectory[j].pose.position.x - reduced_points[i][0];
-            double dy = trajectory[j].pose.position.y - reduced_points[i][1];
-            double dz = trajectory[j].pose.position.z - reduced_points[i][2];
-            double dist_sq = dx*dx + dy*dy + dz*dz;
-            if (dist_sq < min_dist_sq) {
-                min_dist_sq = dist_sq;
-                matched_index = static_cast<int>(j);
-            }
-        }
-
-        if (matched_index >= 0) {
-            pose_stamped.pose.orientation = trajectory[matched_index].pose.orientation;
-        } else {
-            // Print error and throw exception
-            std::cerr << "Error: Reduced point at index " << i << " could not be matched to any original point!" << std::endl;
-            throw std::runtime_error("No matching original point found for reduced point in approxLinPrimitivesWithRDP.");
-        }
+        pose_stamped.pose.orientation = trajectory[reduced_indices[i]].pose.orientation;
 
         primitive.poses.push_back(pose_stamped);
         motion_primitives.push_back(primitive);
@@ -151,18 +132,7 @@ MotionSequence approxPtpPrimitivesWithRDP(
         points.push_back(pt.joint_positions);
     }
 
-    rdp::PointList reduced_points = rdp::rdpRecursive(points, epsilon);
-
-    // --- Find indices of reduced points in original joint_positions ---
-    std::vector<int> reduced_to_original_index(reduced_points.size(), -1);
-    for (size_t i = 0; i < reduced_points.size(); ++i) {
-        for (size_t j = 0; j < points.size(); ++j) {
-            if (points[j] == reduced_points[i]) {
-                reduced_to_original_index[i] = static_cast<int>(j);
-                break;
-            }
-        }
-    }
+    auto [reduced_points, reduced_indices] = rdp::rdpRecursive(points, epsilon);
 
     for (size_t i = 1; i < reduced_points.size(); ++i) {
         MotionPrimitive primitive;
@@ -171,19 +141,14 @@ MotionSequence approxPtpPrimitivesWithRDP(
         if (i == reduced_points.size() - 1) {
             primitive.blend_radius = 0.0;
         } else {
-            int prev_index = reduced_to_original_index[i - 1];
-            int curr_index = reduced_to_original_index[i];
-            int next_index = reduced_to_original_index[i + 1];
+            size_t prev_index = reduced_indices[i - 1];
+            size_t curr_index = reduced_indices[i];
+            size_t next_index = reduced_indices[i + 1];
 
-            if (prev_index == -1 || curr_index == -1 || next_index == -1) {
-                std::cerr << "[approxPtpPrimitivesWithRDP] Warning: Could not find all original indices at i=" << i << std::endl;
-                primitive.blend_radius = 0.0;
-            } else {
-                rdp::Point prev_xyz = {trajectory[prev_index].pose.position.x, trajectory[prev_index].pose.position.y, trajectory[prev_index].pose.position.z};
-                rdp::Point curr_xyz = {trajectory[curr_index].pose.position.x, trajectory[curr_index].pose.position.y, trajectory[curr_index].pose.position.z};
-                rdp::Point next_xyz = {trajectory[next_index].pose.position.x, trajectory[next_index].pose.position.y, trajectory[next_index].pose.position.z};
-                primitive.blend_radius = calculateBlendRadius(prev_xyz, curr_xyz, next_xyz);
-            }
+            rdp::Point prev_xyz = {trajectory[prev_index].pose.position.x, trajectory[prev_index].pose.position.y, trajectory[prev_index].pose.position.z};
+            rdp::Point curr_xyz = {trajectory[curr_index].pose.position.x, trajectory[curr_index].pose.position.y, trajectory[curr_index].pose.position.z};
+            rdp::Point next_xyz = {trajectory[next_index].pose.position.x, trajectory[next_index].pose.position.y, trajectory[next_index].pose.position.z};
+            primitive.blend_radius = calculateBlendRadius(prev_xyz, curr_xyz, next_xyz);
         }
 
         double velocity = -1.0;
@@ -212,6 +177,7 @@ MotionSequence approxPtpPrimitivesWithRDP(
         }
 
         primitive.joint_positions = reduced_points[i];
+        motion_primitives.push_back(primitive);
 
         std::cout << "Added PTP Primitive [" << i << "]: joints = (";
         for (size_t j = 0; j < reduced_points[i].size(); ++j) {
@@ -219,11 +185,10 @@ MotionSequence approxPtpPrimitivesWithRDP(
             if (j + 1 < reduced_points[i].size()) std::cout << ", ";
         }
         std::cout << "), blend_radius = " << primitive.blend_radius << ", "
+          << "move_time = " << move_time << ", "
           << "velocity = " << velocity << ", "
           << "acceleration = " << acceleration
           << std::endl;
-
-        motion_primitives.push_back(primitive);
     }
 
     motion_sequence.motions = motion_primitives;

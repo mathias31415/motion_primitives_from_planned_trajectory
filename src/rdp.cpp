@@ -72,9 +72,14 @@ double pointLineDistanceND(const Point& point, const Point& start, const Point& 
 }
 
 // Recursive implementation of the Ramer-Douglas-Peucker algorithm
-PointList rdpRecursive(const PointList& points, double epsilon) {
-    if (points.size() < 2)
-        return points;
+std::pair<PointList, std::vector<std::size_t>> rdpRecursive(const PointList& points, double epsilon, std::size_t offset) {
+    if (points.size() < 2) {
+        std::vector<std::size_t> indices;
+        for (std::size_t i = 0; i < points.size(); ++i) {
+            indices.push_back(offset + i);
+        }
+        return {points, indices};
+    }
 
     double dmax = 0.0;
     std::size_t index = 0;
@@ -90,19 +95,19 @@ PointList rdpRecursive(const PointList& points, double epsilon) {
 
     // If the max distance is greater than epsilon, recursively simplify
     if (dmax > epsilon) {
-        PointList rec1(points.begin(), points.begin() + index + 1);
-        PointList rec2(points.begin() + index, points.end());
+        auto rec1 = rdpRecursive(PointList(points.begin(), points.begin() + index + 1), epsilon, offset);
+        auto rec2 = rdpRecursive(PointList(points.begin() + index, points.end()), epsilon, offset + index);
 
-        PointList res1 = rdpRecursive(rec1, epsilon);
-        PointList res2 = rdpRecursive(rec2, epsilon);
+        // Remove duplicate in res1
+        rec1.first.pop_back();
+        rec1.second.pop_back();
 
-        // Combine results, avoiding duplicate of the middle point
-        res1.pop_back();
-        res1.insert(res1.end(), res2.begin(), res2.end());
-        return res1;
+        // Merge
+        rec1.first.insert(rec1.first.end(), rec2.first.begin(), rec2.first.end());
+        rec1.second.insert(rec1.second.end(), rec2.second.begin(), rec2.second.end());
+        return rec1;
     } else {
-        // No point is far enough — keep only endpoints
-        return {points.front(), points.back()};
+        return {{points.front(), points.back()}, {offset, offset + points.size() - 1}};
     }
 }
 
