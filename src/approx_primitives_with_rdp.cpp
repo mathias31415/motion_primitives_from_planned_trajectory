@@ -61,7 +61,7 @@ MotionSequence approxLinPrimitivesWithRDP(
         } else {
             // Calculate blend radius based on distance to previous point
             primitive.blend_radius = calculateBlendRadius(
-                reduced_points[i - 1], reduced_points[i]);
+                reduced_points[i - 1], reduced_points[i], reduced_points[i + 1]);
         }
 
         // TODO(mathias31415): Calculate velocity and acceleration based on the time from start
@@ -150,34 +150,37 @@ MotionSequence approxPtpPrimitivesWithRDP(
     rdp::PointList points = joint_positions;
     rdp::PointList reduced_points = rdp::rdpRecursive(points, epsilon);
 
+    // --- Find indices of reduced points in original joint_positions ---
+    std::vector<int> reduced_to_original_index(reduced_points.size(), -1);
+    for (size_t i = 0; i < reduced_points.size(); ++i) {
+        for (size_t j = 0; j < points.size(); ++j) {
+            reduced_to_original_index[i] = -1;
+            if (points[j] == reduced_points[i]) {
+                reduced_to_original_index[i] = static_cast<int>(j);
+                break;
+            }
+        }
+    }
+
     for (size_t i = 1; i < reduced_points.size(); ++i) {
         MotionPrimitive primitive;
         primitive.type = MotionPrimitive::LINEAR_JOINT;
 
         if (i == reduced_points.size() - 1) {
-            // Last point: blend radius = 0
             primitive.blend_radius = 0.0;
         } else {
-            // --- Find indices of reduced points in original joint_positions ---
-            int prev_index = -1;
-            int curr_index = -1;
-            for (size_t j = 0; j < points.size(); ++j) {
-                if (points[j] == reduced_points[i - 1]) prev_index = static_cast<int>(j);
-                if (points[j] == reduced_points[i])     curr_index = static_cast<int>(j);
-            }
+            int prev_index = reduced_to_original_index[i - 1];
+            int curr_index = reduced_to_original_index[i];
+            int next_index = reduced_to_original_index[i + 1];
 
-            if (prev_index == -1 || curr_index == -1) {
-                std::cerr << "[approxPtpPrimitivesWithRDP] Warning: Could not find reduced points in original list at i=" << i << std::endl;
-                primitive.blend_radius = 0.0;  // fallback
+            if (prev_index == -1 || curr_index == -1 || next_index == -1) {
+                std::cerr << "[approxPtpPrimitivesWithRDP] Warning: Could not find all original indices at i=" << i << std::endl;
+                primitive.blend_radius = 0.0;
             } else {
-                // --- Get corresponding poses ---
-                const auto& prev_pose = poses_list[prev_index];
-                const auto& curr_pose = poses_list[curr_index];
-
-                rdp::Point prev_xyz = {prev_pose.position.x, prev_pose.position.y, prev_pose.position.z};
-                rdp::Point curr_xyz = {curr_pose.position.x, curr_pose.position.y, curr_pose.position.z};
-
-                primitive.blend_radius = calculateBlendRadius(prev_xyz, curr_xyz);
+                rdp::Point prev_xyz = {poses_list[prev_index].position.x, poses_list[prev_index].position.y, poses_list[prev_index].position.z};
+                rdp::Point curr_xyz = {poses_list[curr_index].position.x, poses_list[curr_index].position.y, poses_list[curr_index].position.z};
+                rdp::Point next_xyz = {poses_list[next_index].position.x, poses_list[next_index].position.y, poses_list[next_index].position.z};
+                primitive.blend_radius = calculateBlendRadius(prev_xyz, curr_xyz, next_xyz);
             }
         }
 
@@ -214,15 +217,22 @@ MotionSequence approxPtpPrimitivesWithRDP(
 }
 
 
-double calculateBlendRadius(const rdp::Point& previous_point, const rdp::Point& current_point)
+double calculateBlendRadius(const rdp::Point& previous_point,
+                            const rdp::Point& current_point,
+                            const rdp::Point& next_point)
 {
-    // Calculate distance to previous point
-    double dx = current_point[0] - previous_point[0];
-    double dy = current_point[1] - previous_point[1];
-    double dz = current_point[2] - previous_point[2];
-    double dist = std::sqrt(dx*dx + dy*dy + dz*dz);
+    double dist_prev = std::sqrt(
+        std::pow(current_point[0] - previous_point[0], 2) +
+        std::pow(current_point[1] - previous_point[1], 2) +
+        std::pow(current_point[2] - previous_point[2], 2));
 
-    double blend = 0.1 * dist;
+    double dist_next = std::sqrt(
+        std::pow(next_point[0] - current_point[0], 2) +
+        std::pow(next_point[1] - current_point[1], 2) +
+        std::pow(next_point[2] - current_point[2], 2));
+
+    double min_dist = std::min(dist_prev, dist_next);
+    double blend = 0.1 * min_dist;
 
     // Clamp blend radius to [0, 0.1] with minimum threshold 0.001
     if (blend < 0.001) {

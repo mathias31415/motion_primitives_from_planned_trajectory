@@ -46,7 +46,8 @@ industrial_robot_motion_interfaces::msg::MotionSequence approxPtpPrimitivesWithR
 
 double calculateBlendRadius(
     const rdp::Point& previous_point, 
-    const rdp::Point& current_point
+    const rdp::Point& current_point,
+    const rdp::Point& next_point
 );
 
 } // namespace approx_primitives_with_rdp
