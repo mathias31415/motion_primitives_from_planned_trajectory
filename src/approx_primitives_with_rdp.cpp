@@ -62,13 +62,15 @@ MotionSequence approxLinPrimitivesWithRDP(
         double acceleration = -1.0;
         double move_time = -1.0;
         if (use_time_not_vel_and_acc) {
-            move_time = 2.0;
-
+            double prev_time = trajectory[reduced_indices[i - 1]].time_from_start;
+            double curr_time = trajectory[reduced_indices[i]].time_from_start;
+            move_time = curr_time - prev_time;
             MotionArgument arg_time;
             arg_time.argument_name = "move_time";
             arg_time.argument_value = move_time;
             primitive.additional_arguments.push_back(arg_time);
         } else {
+            // TODO(mathias31415): Calculate vel and acc based on time_from_start
             velocity = 1.0;
             acceleration = 1.0;
 
@@ -155,13 +157,15 @@ MotionSequence approxPtpPrimitivesWithRDP(
         double acceleration = -1.0;
         double move_time = -1.0;
         if (use_time_not_vel_and_acc) {
-            move_time = 2.0;
-
+            double prev_time = trajectory[reduced_indices[i - 1]].time_from_start;
+            double curr_time = trajectory[reduced_indices[i]].time_from_start;
+            move_time = curr_time - prev_time;
             MotionArgument arg_time;
             arg_time.argument_name = "move_time";
             arg_time.argument_value = move_time;
             primitive.additional_arguments.push_back(arg_time);
         } else {
+            // TODO(mathias31415): Calculate vel and acc based on time_from_start
             velocity = 1.0;
             acceleration = 1.0;
 
