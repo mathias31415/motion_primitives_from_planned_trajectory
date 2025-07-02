@@ -14,11 +14,11 @@ ros2 run ur_client_library start_ursim.sh -m ur10e
 ```
 Start Driver
 ```
-ros2 launch ur_robot_driver ur_control.launch.py ur_type:=ur10e robot_ip:=192.168.56.101 initial_joint_controller:=motion_primitive_controller launch_rviz:=false
+ros2 launch ur_robot_driver ur_control.launch.py ur_type:=ur10e robot_ip:=192.168.56.101 initial_joint_controller:=motion_primitive_forward_controller launch_rviz:=false
 ```
 (optional) switch control mode
 ```
-ros2 control switch_controllers --activate motion_primitive_controller --deactivate scaled_joint_trajectory_controller
+ros2 control switch_controllers --activate motion_primitive_forward_controller --deactivate scaled_joint_trajectory_controller
 ```
 Start MoveIt
 ```

@@ -24,8 +24,8 @@ using GoalHandleExecuteMotion = rclcpp_action::ClientGoalHandle<ExecuteMotion>;
 ExecuteMotionClient::ExecuteMotionClient(const rclcpp::NodeOptions & options)
 : Node("motion_sequence_client", options), cancel_thread_running_(false)
 {
-    action_client_ = rclcpp_action::create_client<ExecuteMotion>(this, "/motion_primitive_controller/motion_sequence");
-    cancel_client_ = this->create_client<action_msgs::srv::CancelGoal>("/motion_primitive_controller/motion_sequence/_action/cancel_goal");
+    action_client_ = rclcpp_action::create_client<ExecuteMotion>(this, "/motion_primitive_forward_controller/motion_sequence");
+    cancel_client_ = this->create_client<action_msgs::srv::CancelGoal>("/motion_primitive_forward_controller/motion_sequence/_action/cancel_goal");
 }
 
 ExecuteMotionClient::~ExecuteMotionClient()
