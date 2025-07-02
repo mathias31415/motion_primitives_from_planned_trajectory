@@ -23,6 +23,7 @@
 #include "industrial_robot_motion_interfaces/msg/motion_primitive.hpp"
 #include "industrial_robot_motion_interfaces/msg/motion_sequence.hpp"
 #include "industrial_robot_motion_interfaces/msg/motion_argument.hpp"
+#include "motion_primitives_from_planned_trajectory/rdp.hpp"
 
 namespace approx_primitives_with_rdp {
 
@@ -40,6 +41,11 @@ industrial_robot_motion_interfaces::msg::MotionSequence approxPtpPrimitivesWithR
     double epsilon = 0.01,
     double velocity = 0.01,
     double acceleration = 0.01
+);
+
+double calculateBlendRadius(
+    const rdp::Point& previous_point, 
+    const rdp::Point& current_point
 );
 
 } // namespace approx_primitives_with_rdp

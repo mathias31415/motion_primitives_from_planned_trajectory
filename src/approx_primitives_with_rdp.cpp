@@ -18,7 +18,6 @@
 #include <algorithm>
 #include <cmath>
 #include "motion_primitives_from_planned_trajectory/approx_primitives_with_rdp.hpp"
-#include "motion_primitives_from_planned_trajectory/rdp.hpp"
 
 using geometry_msgs::msg::Pose;
 using geometry_msgs::msg::PoseStamped;
@@ -60,22 +59,9 @@ MotionSequence approxLinPrimitivesWithRDP(
             // Last point: blend radius = 0
             primitive.blend_radius = 0.0;
         } else {
-            // Calculate distance to previous point
-            double dx = reduced_points[i][0] - reduced_points[i - 1][0];
-            double dy = reduced_points[i][1] - reduced_points[i - 1][1];
-            double dz = reduced_points[i][2] - reduced_points[i - 1][2];
-            double dist = std::sqrt(dx*dx + dy*dy + dz*dz);
-
-            double blend = 0.1 * dist;
-
-            // Clamp blend radius to [0, 0.1] with minimum threshold 0.001
-            if (blend < 0.001) {
-                blend = 0.0;
-            } else if (blend > 0.1) {
-                blend = 0.1;
-            }
-
-            primitive.blend_radius = blend;
+            // Calculate blend radius based on distance to previous point
+            primitive.blend_radius = calculateBlendRadius(
+                reduced_points[i - 1], reduced_points[i]);
         }
 
         // TODO(mathias31415): Calculate velocity and acceleration based on the time from start
@@ -194,6 +180,26 @@ MotionSequence approxPtpPrimitivesWithRDP(
     std::cout << "Reduced " << points.size() << " joint points to " << (reduced_points.size() - 1) << " PTP primitives with epsilon=" << epsilon << std::endl;
 
     return motion_sequence;
+}
+
+double calculateBlendRadius(const rdp::Point& previous_point, const rdp::Point& current_point)
+{
+    // Calculate distance to previous point
+    double dx = current_point[0] - previous_point[0];
+    double dy = current_point[1] - previous_point[1];
+    double dz = current_point[2] - previous_point[2];
+    double dist = std::sqrt(dx*dx + dy*dy + dz*dz);
+
+    double blend = 0.1 * dist;
+
+    // Clamp blend radius to [0, 0.1] with minimum threshold 0.001
+    if (blend < 0.001) {
+        blend = 0.0;
+    } else if (blend > 0.1) {
+        blend = 0.1;
+    }
+
+    return blend;
 }
 
 } // namespace approx_primitives_with_rdp
