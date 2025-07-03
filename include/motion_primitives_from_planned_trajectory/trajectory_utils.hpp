@@ -17,31 +17,30 @@
 #ifndef TRAJECTORY_UTILS_HPP
 #define TRAJECTORY_UTILS_HPP
 
-#include <vector>
-#include <string>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/joint_state.hpp>
+#include <string>
 #include <trajectory_msgs/msg/joint_trajectory_point.hpp>
+#include <vector>
 
-namespace trajectory_utils {
+namespace trajectory_utils
+{
 
 /**
- * @brief Vergleicht die aktuelle Joint-Position mit dem Startpunkt der geplanten Trajektorie.
- * 
- * @param node Shared Pointer auf den aktuellen Node.
- * @param joint_names Reihenfolge der Gelenknamen in der Trajektorie.
- * @param trajectory_points Liste der geplanten Trajektorienpunkte.
- * @param tolerance Erlaubter numerischer Unterschied zwischen Soll- und Istwert.
- * @return true Wenn alle Gelenkpositionen innerhalb der Toleranz übereinstimmen.
- * @return false Wenn mindestens ein Gelenk nicht übereinstimmt oder Daten fehlen.
+ * @brief Compares the current joint positions with the start point of the planned trajectory.
+ *
+ * @param node Shared pointer to the current node.
+ * @param joint_names Order of joint names in the trajectory.
+ * @param trajectory_points List of planned trajectory points.
+ * @param tolerance Allowed numerical difference between target and actual values.
+ * @return true If all joint positions match within the tolerance.
+ * @return false If at least one joint does not match or data is missing.
  */
 bool isStartStateMatching(
-    const std::shared_ptr<rclcpp::Node>& node,
-    const std::vector<std::string>& joint_names,
-    const std::vector<trajectory_msgs::msg::JointTrajectoryPoint>& trajectory_points,
-    double tolerance = 1e-3
-);
+  const std::shared_ptr<rclcpp::Node> & node, const std::vector<std::string> & joint_names,
+  const std::vector<trajectory_msgs::msg::JointTrajectoryPoint> & trajectory_points,
+  double tolerance = 1e-3);
 
-} // namespace trajectory_utils
+}  // namespace trajectory_utils
 
-#endif // TRAJECTORY_UTILS_HPP
+#endif  // TRAJECTORY_UTILS_HPP
